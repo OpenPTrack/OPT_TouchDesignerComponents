@@ -13,5 +13,5 @@ This CHOP will automatically fill any dropped track ID with a -1 value in order 
 
 ## Authors
 - **Ian Shelanskey** [ianshelanskey.com](http://ianshelanskey.com)
-
+- **Peter Gusev** peter [at] ucla dot remap dot edu
    
