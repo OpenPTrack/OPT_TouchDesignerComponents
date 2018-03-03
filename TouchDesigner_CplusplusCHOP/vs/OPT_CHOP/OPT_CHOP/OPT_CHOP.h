@@ -1,15 +1,18 @@
 #pragma once
 
-#ifdef OPT_CHOP_EXPORTS
-#define OPT_CHOP_API __declspec(dllexport)
-#else
-#define OPT_CHOP_API __declspec(dllimport)
-#endif
 #define BUFLEN 65507
 #include "CHOP_CPlusPlusBase.h"
 #include <map>
 #include <vector>
-#include <winsock2.h>
+
+#ifdef WIN32
+    #include <winsock2.h>
+#else
+    #include <sys/types.h>
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <netinet/ip.h>
+#endif
 
 class OPT_CHOP : public CHOP_CPlusPlusBase
 {
@@ -38,12 +41,17 @@ private:
 	const char* names[6] = { "id", "age", "confidence", "x", "y", "height"};
 	std::map<float, std::vector<float>> data;
 
+    #ifdef WIN32
 	SOCKET s;
-	struct sockaddr_in server, si_other;
-	int slen, recv_len;
-	WSADATA wsa;
-
-
+    WSADATA wsa;
+    #else
+    int s;
+    #endif
+	
+    struct sockaddr_in server, si_other;
+    unsigned int slen;
+    int recv_len;
+    uint64_t heartbeat;
 };
 
 
