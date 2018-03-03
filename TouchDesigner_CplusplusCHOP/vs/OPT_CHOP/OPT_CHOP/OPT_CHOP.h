@@ -31,6 +31,10 @@ public:
 
 	virtual void execute(const CHOP_Output*, OP_Inputs*, void* reserved) override;
 
+    virtual int32_t getNumInfoCHOPChans() override;
+    virtual void getInfoCHOPChan(int index,
+                                 OP_InfoCHOPChan* chan) override;
+
 	virtual void setupParameters(OP_ParameterManager * manager) override;
 
 private:
@@ -51,7 +55,7 @@ private:
     struct sockaddr_in server, si_other;
     unsigned int slen;
     int recv_len;
-    uint64_t heartbeat;
+    uint64_t heartbeat, maxId;
 };
 
 

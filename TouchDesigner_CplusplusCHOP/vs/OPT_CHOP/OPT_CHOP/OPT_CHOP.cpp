@@ -67,7 +67,7 @@ extern "C"
 
 
 OPT_CHOP::OPT_CHOP(const OP_NodeInfo * info):
-heartbeat(0)
+heartbeat(0), maxId(0)
 {
 	//Create a UDP Socket.
 	slen = sizeof(si_other);
@@ -160,6 +160,7 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
         if (std::string(frameId) == "heartbeat")
         {
             heartbeat++;
+            maxId = d["max_ID"].GetInt();
         }
         else //Get all of the tracks from JSON.
         {
@@ -258,6 +259,29 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
             } // for
         } // if not heartbeat
     } // if buffer is not empty
+}
+
+int32_t
+OPT_CHOP::getNumInfoCHOPChans()
+{
+    return 2; // hearbeat, max id
+}
+
+void
+OPT_CHOP::getInfoCHOPChan(int32_t index,
+                          OP_InfoCHOPChan* chan)
+{
+    if (index == 0)
+    {
+        chan->name = "heartbeat";
+        chan->value = (float)heartbeat;
+    }
+    
+    if (index == 1)
+    {
+        chan->name = "maxId";
+        chan->value = (float)maxId;
+    }
 }
 
 void OPT_CHOP::setupParameters(OP_ParameterManager* manager) 
