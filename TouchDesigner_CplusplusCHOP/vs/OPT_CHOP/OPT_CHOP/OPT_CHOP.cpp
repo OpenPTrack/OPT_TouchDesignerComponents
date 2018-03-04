@@ -1,7 +1,6 @@
     //Copyright (c) 2017-2016 Ian Shelanskey ishelanskey@gmail.com
 //All rights reserved.
 
-
 #include <vector>
 #include <map>
 #include <string>
@@ -164,99 +163,102 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
         }
         else //Get all of the tracks from JSON.
         {
-            const rapidjson::Value& tracks = d["people_tracks"].GetArray();
-            
-            //For each new track.
-            for (rapidjson::SizeType i = 0; i < tracks.Size(); i++)
+            if (d.HasMember("people_tracks"))
             {
-                //Create a vector of new tracks data.
-                std::vector<float> incoming = {	float(tracks[i]["age"].GetFloat()),
-                    float(tracks[i]["confidence"].GetFloat()),
-                    float(tracks[i]["x"].GetFloat()),
-                    float(tracks[i]["y"].GetFloat()),
-                    float(tracks[i]["height"].GetFloat()) };
+                const rapidjson::Value& tracks = d["people_tracks"].GetArray();
                 
-                //Get id of track.
-                float newid = float(tracks[i]["id"].GetInt());
+                //For each new track.
+                for (rapidjson::SizeType i = 0; i < tracks.Size(); i++)
+                {
+                    //Create a vector of new tracks data.
+                    std::vector<float> incoming = {	float(tracks[i]["age"].GetFloat()),
+                        float(tracks[i]["confidence"].GetFloat()),
+                        float(tracks[i]["x"].GetFloat()),
+                        float(tracks[i]["y"].GetFloat()),
+                        float(tracks[i]["height"].GetFloat()) };
+                    
+                    //Get id of track.
+                    float newid = float(tracks[i]["id"].GetInt());
+                    
+                    //Add id to vector of ids to use in find and replace operation later.
+                    NewTracks.push_back(newid);
+                    
+                    //Map data to its id.
+                    data.insert_or_assign(newid, incoming);
+                } // for
                 
-                //Add id to vector of ids to use in find and replace operation later.
-                NewTracks.push_back(newid);
                 
-                //Map data to its id.
-                data.insert_or_assign(newid, incoming);
-            } // for
-            
-            
-            //Create counters for ID matching and sorting.
-            int offset = 0; //New data
-            int i = 0; //Old data
-            
-            //Go through each Track ID.
-            while(offset < NewTracks.size())
-            {
-                //Find tracks not being used.
-                if (i < output->numSamples) {
-                    //If the previous track is not in the new frame of data.
-                    if (NewTracks[offset] != output->channels[0][i]) {
-                        //Change its id to -1.
-                        output->channels[0][i] = -1;
-                        //Increase old track counter.
-                        i++;
-                        continue;
-                    }
-                    else {
-                        //We are still tracking this old ID.
-                        i++;
-                        offset++;
-                    }
-                }
-                else {
-                    //Look for any ids that are -1 to replace with overflow track data.
-                    float * p;
-                    p = std::find(output->channels[0], output->channels[0]+output->numSamples, -1);
-                    if (p == output->channels[0] + output->numSamples) {
-                        //There are no empty slots for new data.
-                        break;
-                    }
-                    else {
-                        //Replace empty slot with overflow track data.
-                        if (NewTracks.size() - offset > 0 ) {
-                            //TODO add filters - age, confidence.
-                            *p = NewTracks[offset];
+                //Create counters for ID matching and sorting.
+                int offset = 0; //New data
+                int i = 0; //Old data
+                
+                //Go through each Track ID.
+                while(offset < NewTracks.size())
+                {
+                    //Find tracks not being used.
+                    if (i < output->numSamples) {
+                        //If the previous track is not in the new frame of data.
+                        if (NewTracks[offset] != output->channels[0][i]) {
+                            //Change its id to -1.
+                            output->channels[0][i] = -1;
+                            //Increase old track counter.
+                            i++;
+                            continue;
                         }
                         else {
-                            //No overflow track data exists. Leave them as -1.
-                            break;
+                            //We are still tracking this old ID.
+                            i++;
+                            offset++;
                         }
                     }
-                    offset++;
-                }
-            } // while
-            
-            //Iterate through IDs.
-            for (int i = 0; i < output->numSamples; i++) {
-                float lookupid = output->channels[0][i];
-                
-                if (lookupid < 0) {
-                    //Set any open slots to 0.
-                    output->channels[1][i] = 0;
-                    output->channels[2][i] = 0;
-                    output->channels[3][i] = 0;
-                    output->channels[4][i] = 0;
-                    output->channels[5][i] = 0;
-                }
-                else {
-                    if (data.find(lookupid) != data.end())
-                    {
-                        //Lookup track data based on ID in data map.
-                        output->channels[1][i] = data[lookupid][0]; //age
-                        output->channels[2][i] = data[lookupid][1]; //confidence
-                        output->channels[3][i] = data[lookupid][2]; //x
-                        output->channels[4][i] = data[lookupid][3]; //y
-                        output->channels[5][i] = data[lookupid][4]; //height
+                    else {
+                        //Look for any ids that are -1 to replace with overflow track data.
+                        float * p;
+                        p = std::find(output->channels[0], output->channels[0]+output->numSamples, -1);
+                        if (p == output->channels[0] + output->numSamples) {
+                            //There are no empty slots for new data.
+                            break;
+                        }
+                        else {
+                            //Replace empty slot with overflow track data.
+                            if (NewTracks.size() - offset > 0 ) {
+                                //TODO add filters - age, confidence.
+                                *p = NewTracks[offset];
+                            }
+                            else {
+                                //No overflow track data exists. Leave them as -1.
+                                break;
+                            }
+                        }
+                        offset++;
                     }
-                }
-            } // for
+                } // while
+                
+                //Iterate through IDs.
+                for (int i = 0; i < output->numSamples; i++) {
+                    float lookupid = output->channels[0][i];
+                    
+                    if (lookupid < 0) {
+                        //Set any open slots to 0.
+                        output->channels[1][i] = 0;
+                        output->channels[2][i] = 0;
+                        output->channels[3][i] = 0;
+                        output->channels[4][i] = 0;
+                        output->channels[5][i] = 0;
+                    }
+                    else {
+                        if (data.find(lookupid) != data.end())
+                        {
+                            //Lookup track data based on ID in data map.
+                            output->channels[1][i] = data[lookupid][0]; //age
+                            output->channels[2][i] = data[lookupid][1]; //confidence
+                            output->channels[3][i] = data[lookupid][2]; //x
+                            output->channels[4][i] = data[lookupid][3]; //y
+                            output->channels[5][i] = data[lookupid][4]; //height
+                        }
+                    }
+                } // for
+            }
         } // if not heartbeat
     } // if buffer is not empty
 }
