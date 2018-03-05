@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <queue>
+#include <set>
 
 #ifdef WIN32
     #include <winsock2.h>
@@ -33,6 +34,14 @@
 class OM_CHOP : public CHOP_CPlusPlusBase, public JsonSocketReader::ISlaveReceiver
 {
 public:
+    typedef enum _OutChoice {
+        Unknown,
+        Derivatives,
+        Pairwise,
+        Dwt,
+        Cluster
+    } OutChoice;
+    
     OM_CHOP(const OP_NodeInfo * info);
     
     virtual ~OM_CHOP();
@@ -62,23 +71,56 @@ public:
     }
     
 private:
+    
     std::string errorMessage_, warningMessage_;
     
     std::atomic<bool> queueBusy_;
+    std::mutex documentQueueMutex_;
     std::queue<rapidjson::Document> documentQueue_;
+    
+    // dictionary of collected messages
+    typedef std::map<int, std::vector<rapidjson::Document>> MessagesQueue;
+    std::mutex messagesMutex_;
+    std::map<int, std::vector<rapidjson::Document>> messages_;
+    
+    OutChoice outChoice_;
     
     const OP_NodeInfo *myNodeInfo;
     int seq;
-    const char* names[6] = { "id", "age", "confidence", "x", "y", "height"};
-//    const char* names[6] = { "id", "der1x", "der1y", "der2x", "der2y"};
+    
     std::map<float, std::vector<float>> data;
     
-    uint64_t heartbeat, maxId;
+    uint64_t nAliveIds_;
+    std::vector<std::vector<float>> pairwiseMatrix_;
     
     void setupSocketReader();
     
     void onNewJsonOnjectReceived(const rapidjson::Document&) override;
     void onSocketError(const std::string&) override;
+    
+    void processQueue();
+    
+    // outputs:
+    // - id order
+    // - derivatives
+    // - dwt distances
+    // - pairwise matrix
+    void processMessages(std::vector<rapidjson::Document>&,
+                         std::vector<int>& idOrder,
+                         std::map<int, std::pair<float,float>>&,
+                         std::map<int, std::pair<float,float>>&,
+                         std::map<int, std::vector<float>>&,
+                         std::vector<std::vector<float>>&,
+                         std::vector<std::vector<float>>&);
+    
+    bool retireve(const std::string& key,
+                  std::vector<rapidjson::Document>&,
+                  rapidjson::Value&);
+    
+    bool hasResidualData();
+    void processResidualData(const CHOP_Output*, OP_Inputs*);
+    
+    void checkInputs(const CHOP_Output *, OP_Inputs *inputs, void *);
 };
 
 

@@ -47,7 +47,7 @@ public:
     // stops listening socket
     void stop();
     
-    bool isRunning() { return isActive_; }
+    bool isRunning();
     
     void registerSlave(ISlaveReceiver*);
     void unregisterSlave(ISlaveReceiver*);

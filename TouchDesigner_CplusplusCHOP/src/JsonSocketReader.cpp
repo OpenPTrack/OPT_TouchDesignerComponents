@@ -9,6 +9,7 @@
 #include "JsonSocketReader.hpp"
 
 #include <sstream>
+#include <regex>
 
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -30,6 +31,14 @@
 #endif
 
 using namespace std;
+using std::string;
+
+string do_replace( string const & in, string const & from, string const & to )
+{
+    return std::regex_replace( in, std::regex(from), to );
+}
+
+//******************************************************************************
 
 JsonSocketReader::JsonSocketReader(int port):
 isActive_(false)
@@ -62,6 +71,12 @@ JsonSocketReader::stop()
         isActive_ = false;
         readThread_->join();
     }
+}
+
+bool
+JsonSocketReader::isRunning()
+{
+    return isActive_;     
 }
 
 void
@@ -163,6 +178,10 @@ JsonSocketReader::listenSocket()
                                 (struct sockaddr*)&si_other, &slen);
         if (buffer_[0] != 0)
         {
+            std::string buf(buffer_);
+            // little hack to replace pyhton's NaN to "NaN" (strings) so that parser does not freak out
+            strcpy(buffer_, do_replace(buf, "NaN", "\"Null\"").c_str());
+            
             rapidjson::Document d;
             d.Parse(buffer_);
             
