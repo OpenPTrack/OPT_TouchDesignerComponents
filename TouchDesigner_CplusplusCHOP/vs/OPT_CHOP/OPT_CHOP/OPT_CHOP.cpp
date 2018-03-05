@@ -12,7 +12,6 @@
 #include "rapidjson/stringbuffer.h"
 
 #ifdef WIN32
-    #include "stdafx.h"
     #include <winsock2.h>
 
     #pragma comment(lib,"ws2_32.lib") //Winsock Library
@@ -24,6 +23,8 @@
     #define SOCKET_ERROR -1
     #define WSAGetLastError() errno
 #endif
+
+#define OPT_CHOP_API
 
 #ifdef WIN32
     #ifdef OPT_CHOP_API

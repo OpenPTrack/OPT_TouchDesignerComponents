@@ -1,7 +1,6 @@
 #pragma once
-#include "stdafx.h"
+
 #include "OPT_Client.h"
-#include <winsock2.h>
 #include <thread>
 
 
