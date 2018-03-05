@@ -9,25 +9,30 @@
 #ifndef OM_CHOP_hpp
 #define OM_CHOP_hpp
 
-#define BUFLEN 65507
-#include "CHOP_CPlusPlusBase.h"
 #include <map>
 #include <vector>
+#include <string>
+#include <queue>
 
 #ifdef WIN32
-#include <winsock2.h>
+    #include <winsock2.h>
 #else
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
+    #include <sys/types.h>
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <netinet/ip.h>
 #endif
 
-class OM_CHOP : public CHOP_CPlusPlusBase
+#include "rapidjson/document.h"
+
+#include "CHOP_CPlusPlusBase.h"
+#include "JsonSocketReader.hpp"
+
+#define BUFLEN 65507
+
+class OM_CHOP : public CHOP_CPlusPlusBase, public JsonSocketReader::ISlaveReceiver
 {
 public:
-    
-    
     OM_CHOP(const OP_NodeInfo * info);
     
     virtual ~OM_CHOP();
@@ -46,25 +51,34 @@ public:
     
     virtual void setupParameters(OP_ParameterManager * manager) override;
     
+    virtual const char* getWarningString() override
+    {
+        return (warningMessage_.size() ? warningMessage_.c_str() : NULL);
+    }
+    
+    virtual const char* getErrorString() override
+    {
+        return (errorMessage_.size() ? errorMessage_.c_str() : NULL);
+    }
+    
 private:
+    std::string errorMessage_, warningMessage_;
+    
+    std::atomic<bool> queueBusy_;
+    std::queue<rapidjson::Document> documentQueue_;
+    
     const OP_NodeInfo *myNodeInfo;
-    char buf[BUFLEN];
-    bool listening;
     int seq;
-    const char* names[6] = { "id", "der1x", "der1y", "der2x", "der2y"};
+    const char* names[6] = { "id", "age", "confidence", "x", "y", "height"};
+//    const char* names[6] = { "id", "der1x", "der1y", "der2x", "der2y"};
     std::map<float, std::vector<float>> data;
     
-#ifdef WIN32
-    SOCKET s;
-    WSADATA wsa;
-#else
-    int s;
-#endif
-    
-    struct sockaddr_in server, si_other;
-    unsigned int slen;
-    int recv_len;
     uint64_t heartbeat, maxId;
+    
+    void setupSocketReader();
+    
+    void onNewJsonOnjectReceived(const rapidjson::Document&) override;
+    void onSocketError(const std::string&) override;
 };
 
 

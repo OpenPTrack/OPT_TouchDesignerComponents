@@ -1,0 +1,202 @@
+//
+//  JsonSocketReader.cpp
+//  OPT_CHOP
+//
+//  Created by Peter Gusev on 3/5/18.
+//  Copyright © 2018 UCLA. All rights reserved.
+//
+
+#include "JsonSocketReader.hpp"
+
+#include <sstream>
+
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/error/en.h"
+
+#ifdef WIN32
+    // nothing
+#else
+    #include <sys/types.h>
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <netinet/ip.h>
+    #include <errno.h>
+    #include <unistd.h>
+
+    #define INVALID_SOCKET -1
+    #define SOCKET_ERROR -1
+    #define WSAGetLastError() errno
+#endif
+
+using namespace std;
+
+JsonSocketReader::JsonSocketReader(int port):
+isActive_(false)
+{
+    setupSocket(port);
+}
+
+JsonSocketReader::~JsonSocketReader()
+{
+    stop();
+    destroySocket();
+}
+
+void
+JsonSocketReader::start()
+{
+    if (!isActive_)
+    {
+        readThread_ = make_shared<thread>(bind(&JsonSocketReader::listenSocket, this));
+    }
+    else
+        throw runtime_error("Socket reader is already running");
+}
+
+void
+JsonSocketReader::stop()
+{
+    if (isActive_)
+    {
+        isActive_ = false;
+        readThread_->join();
+    }
+}
+
+void
+JsonSocketReader::registerSlave(JsonSocketReader::ISlaveReceiver *slave)
+{
+    lock_guard<mutex> lock(slavesMutex_);
+    slaves_.push_back(slave);
+}
+
+void
+JsonSocketReader::unregisterSlave(JsonSocketReader::ISlaveReceiver *slave)
+{
+    std::vector<ISlaveReceiver*>::iterator it = std::find(slaves_.begin(), slaves_.end(), slave);
+    if (it != slaves_.end())
+    {
+        lock_guard<mutex> lock(slavesMutex_);
+        slaves_.erase(it);
+    }
+}
+
+//******************************************************************************
+void
+JsonSocketReader::setupSocket(int port)
+{
+    //Create a UDP Socket.
+    struct sockaddr_in si_other, server;
+    
+#ifdef WIN32
+    DWORD timeout = 1;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+    {
+        stringstream ss;
+        ss << "WSAStartup failed " << WSAGetLastError();
+        
+        throw runtime_error(ss.str())
+    }
+#else
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+#endif
+    
+    if ((socket_ = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
+    {
+        stringstream ss;
+        ss << "Could not create socket: %d" << WSAGetLastError();
+        
+        throw runtime_error(ss.str());
+    }
+    
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = INADDR_ANY;
+    server.sin_port = htons(port);
+    
+    if (setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+    {
+        stringstream ss;
+        ss << "Socket setup error: " << WSAGetLastError();
+        
+        perror(ss.str().c_str());
+        throw runtime_error(ss.str());
+    }
+    
+    if (::bind(socket_, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR)
+    {
+        stringstream ss;
+        ss << "Socket bind failure: " << WSAGetLastError();
+        
+        perror(ss.str().c_str());
+        throw runtime_error(ss.str());
+    }
+}
+
+void
+JsonSocketReader::destroySocket()
+{
+#ifdef WIN32
+    closesocket(socket_);
+    WSACleanup();
+#else
+    close(socket_);
+#endif
+}
+
+void
+JsonSocketReader::listenSocket()
+{
+    static struct sockaddr si_other;
+    static socklen_t slen = sizeof(si_other);
+    
+    isActive_ = true;
+    
+    while (isActive_)
+    {
+        memset(buffer_, 0, BUFLEN);
+        long recvLen = recvfrom(socket_,
+                                buffer_, BUFLEN,
+                                0,
+                                (struct sockaddr*)&si_other, &slen);
+        if (buffer_[0] != 0)
+        {
+            rapidjson::Document d;
+            d.Parse(buffer_);
+            
+            if (!d.HasParseError())
+            {
+                // deliver document to slaves
+                {
+                    lock_guard<mutex> lock(slavesMutex_);
+                    for (auto slave:slaves_)
+                        slave->onNewJsonOnjectReceived(d);
+                }
+            }
+            else
+            {
+                stringstream ss;
+                ss << "Error while parsing JSON (" << buffer_ << "): "
+                   << rapidjson::GetParseError_En(d.GetParseError());
+                
+                perror(ss.str().c_str());
+            }
+        }
+        else if (recvLen < 0 && (errno != EWOULDBLOCK || errno != EAGAIN))
+        {
+            // socket error here
+            stringstream ss;
+            ss << "Socket error (" << errno << ") occurred: " << strerror(errno);
+            
+            perror(ss.str().c_str());
+            // deliver socket error to all slaves
+            {
+                lock_guard<mutex> lock(slavesMutex_);
+                for (auto slave:slaves_)
+                    slave->onSocketError(ss.str());
+            }
+        }
+    }
+}

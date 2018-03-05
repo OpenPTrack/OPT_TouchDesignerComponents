@@ -8,39 +8,38 @@
 
 #include "OM_CHOP.hpp"
 
-#include <vector>
-#include <map>
-#include <string>
+#include <iostream>
 
-#include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
 #ifdef WIN32
-#include "stdafx.h"
-#include <winsock2.h>
+    #include "stdafx.h"
+    #include <winsock2.h>
 
-#pragma comment(lib,"ws2_32.lib") //Winsock Library
+    #pragma comment(lib,"ws2_32.lib") //Winsock Library
 #else
-#include <errno.h>
-#include <unistd.h>
+    #include <errno.h>
+    #include <unistd.h>
 
-#define INVALID_SOCKET -1
-#define SOCKET_ERROR -1
-#define WSAGetLastError() errno
+    #define INVALID_SOCKET -1
+    #define SOCKET_ERROR -1
+    #define WSAGetLastError() errno
 #endif
 
 #ifdef WIN32
-#ifdef OM_CHOP_API
-#define OM_CHOP_API __declspec(dllexport)
+    #ifdef OM_CHOP_API
+        #define OM_CHOP_API __declspec(dllexport)
+    #else
+        #define OM_CHOP_API __declspec(dllimport)
+    #endif
 #else
-#define OM_CHOP_API __declspec(dllimport)
-#endif
-#else
-#define OM_CHOP_API DLLEXPORT
+    #define OM_CHOP_API DLLEXPORT
 #endif
 
-#define PORT 21235
+#define PORTNUM 21234 // 21235 // openmoves
+
+using namespace std;
 
 //Required functions.
 extern "C"
@@ -70,50 +69,18 @@ extern "C"
     }
 };
 
+static shared_ptr<JsonSocketReader> SocketReader;
 
 OM_CHOP::OM_CHOP(const OP_NodeInfo * info):
-heartbeat(0), maxId(0)
+heartbeat(0), maxId(0),
+errorMessage_(""), warningMessage_("")
 {
-    //Create a UDP Socket.
-    slen = sizeof(si_other);
-    
-#ifdef WIN32
-    DWORD timeout = 1;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
-        printf("Failed. Error code: %d", WSAGetLastError());
-        exit(EXIT_FAILURE);
-    }
-#else
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 100;
-#endif
-    
-    if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET) {
-        printf("Could not create socket: %d", WSAGetLastError());
-    }
-    
-    server.sin_family = AF_INET;
-    server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons(PORT);
-    
-    if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
-        perror("Error");
-    }
-    if (bind(s, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR) {
-        printf("WinSock bind failed");
-    }
+    setupSocketReader();
 }
 
 OM_CHOP::~OM_CHOP()
 {
-    //Destroy UDP Socket
-#ifdef WIN32
-    closesocket(s);
-    WSACleanup();
-#else
-    close(s);
-#endif
+    SocketReader->unregisterSlave(this);
 }
 
 void OM_CHOP::getGeneralInfo(CHOP_GeneralInfo * ginfo)
@@ -125,7 +92,7 @@ void OM_CHOP::getGeneralInfo(CHOP_GeneralInfo * ginfo)
 bool OM_CHOP::getOutputInfo(CHOP_OutputInfo * info)
 {
     //OPT Streaming data (ID, x, y).
-    info->numChannels = 3;
+    info->numChannels = 6;
     
     //Sets the maximum number of people to be tracked.
     info->numSamples = info->opInputs->getParInt("Maxtracked");
@@ -141,46 +108,37 @@ const char* OM_CHOP::getChannelName(int index, void* reserved)
 
 void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserved)
 {
-    fflush(stdout);
     
-    //clear buffer
-    memset(buf, '\0', BUFLEN);
-    
-    if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR) {
-        //Should be an error here. Touch doesn't like that.
-    }
-    
-    //If buffer isn't empty then parse and update channels.
-    if (buf[0] != '\0') {
+    if (documentQueue_.size())
+    {
+        rapidjson::Document d(move(documentQueue_.front()));
+        documentQueue_.pop();
         
         //Create objects to hold incoming data
         std::vector<float> NewTracks;
-        rapidjson::Document d;
         std::vector<float> incoming;
         
-        //Parse json from UDP buffer.
-        d.Parse(buf);
         
-        if (d.HasMember("firstdirs"))
-        {
-            const rapidjson::Value& tracks = d["firstdirs"].GetArray();
-            
-            for (rapidjson::SizeType i = 0; i < tracks.Size(); i++)
-            {
-                //Create a vector of new tracks data.
-                incoming = { float(tracks[i]["x"].GetFloat()),
-                    float(tracks[i]["y"].GetFloat()) };
-                
-                //Get id of track.
-                float newid = float(tracks[i]["id"].GetInt());
-                
-                //Add id to vector of ids to use in find and replace operation later.
-                NewTracks.push_back(newid);
-                
-                //Map data to its id.
-                data.insert_or_assign(newid, incoming);
-            } // for
-        }
+//        if (d.HasMember("firstdirs"))
+//        {
+//            const rapidjson::Value& tracks = d["firstdirs"].GetArray();
+//
+//            for (rapidjson::SizeType i = 0; i < tracks.Size(); i++)
+//            {
+//                //Create a vector of new tracks data.
+//                incoming = { float(tracks[i]["x"].GetFloat()),
+//                    float(tracks[i]["y"].GetFloat()) };
+//
+//                //Get id of track.
+//                float newid = float(tracks[i]["id"].GetInt());
+//
+//                //Add id to vector of ids to use in find and replace operation later.
+//                NewTracks.push_back(newid);
+//
+//                //Map data to its id.
+//                data.insert_or_assign(newid, incoming);
+//            } // for
+//        }
         
 //        if (d.HasMember("seconddirs"))
 //        {
@@ -203,36 +161,36 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
 //            } // for
 //        }
         
-//        const char* frameId = d["header"]["frame_id"].GetString();
+        const char* frameId = d["header"]["frame_id"].GetString();
         
-//        if (std::string(frameId) == "heartbeat")
-//        {
-//            heartbeat++;
-//            maxId = d["max_ID"].GetInt();
-//        }
-//        else //Get all of the tracks from JSON.
+        if (std::string(frameId) == "heartbeat")
         {
-//            const rapidjson::Value& tracks = d["people_tracks"].GetArray();
-//
-//            //For each new track.
-//            for (rapidjson::SizeType i = 0; i < tracks.Size(); i++)
-//            {
-//                //Create a vector of new tracks data.
-//                std::vector<float> incoming = {    float(tracks[i]["age"].GetFloat()),
-//                    float(tracks[i]["confidence"].GetFloat()),
-//                    float(tracks[i]["x"].GetFloat()),
-//                    float(tracks[i]["y"].GetFloat()),
-//                    float(tracks[i]["height"].GetFloat()) };
-//
-//                //Get id of track.
-//                float newid = float(tracks[i]["id"].GetInt());
-//
-//                //Add id to vector of ids to use in find and replace operation later.
-//                NewTracks.push_back(newid);
-//
-//                //Map data to its id.
-//                data.insert_or_assign(newid, incoming);
-//            } // for
+            heartbeat++;
+            maxId = d["max_ID"].GetInt();
+        }
+        else //Get all of the tracks from JSON.
+        {
+            const rapidjson::Value& tracks = d["people_tracks"].GetArray();
+
+            //For each new track.
+            for (rapidjson::SizeType i = 0; i < tracks.Size(); i++)
+            {
+                //Create a vector of new tracks data.
+                std::vector<float> incoming = {    float(tracks[i]["age"].GetFloat()),
+                    float(tracks[i]["confidence"].GetFloat()),
+                    float(tracks[i]["x"].GetFloat()),
+                    float(tracks[i]["y"].GetFloat()),
+                    float(tracks[i]["height"].GetFloat()) };
+
+                //Get id of track.
+                float newid = float(tracks[i]["id"].GetInt());
+
+                //Add id to vector of ids to use in find and replace operation later.
+                NewTracks.push_back(newid);
+
+                //Map data to its id.
+                data.insert_or_assign(newid, incoming);
+            } // for
             
             //Create counters for ID matching and sorting.
             int offset = 0; //New data
@@ -284,6 +242,28 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
             for (int i = 0; i < output->numSamples; i++) {
                 float lookupid = output->channels[0][i];
                 
+#if 1
+                if (lookupid < 0) {
+                    //Set any open slots to 0.
+                    output->channels[1][i] = 0;
+                    output->channels[2][i] = 0;
+                    output->channels[3][i] = 0;
+                    output->channels[4][i] = 0;
+                    output->channels[5][i] = 0;
+                }
+                else {
+                    if (data.find(lookupid) != data.end())
+                    {
+                        //Lookup track data based on ID in data map.
+                        output->channels[1][i] = data[lookupid][0]; //age
+                        output->channels[2][i] = data[lookupid][1]; //confidence
+                        output->channels[3][i] = data[lookupid][2]; //x
+                        output->channels[4][i] = data[lookupid][3]; //y
+                        output->channels[5][i] = data[lookupid][4]; //height
+                    }
+                }
+#else
+                
                 if (lookupid < 0) {
                     //Set any open slots to 0.
                     output->channels[1][i] = 0;
@@ -297,6 +277,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                         output->channels[2][i] = data[lookupid][1]; //y
                     }
                 }
+#endif
             } // for
         } // if not heartbeat
     } // if buffer is not empty
@@ -341,4 +322,48 @@ void OM_CHOP::setupParameters(OP_ParameterManager* manager)
     OP_ParAppendResult res = manager->appendInt(MaxTracked);
     assert(res == OP_ParAppendResult::Success);
     
+}
+
+//******************************************************************************
+void
+OM_CHOP::setupSocketReader()
+{
+    if (!SocketReader)
+    {
+        try
+        {
+            errorMessage_ = "";
+            SocketReader = make_shared<JsonSocketReader>(PORTNUM);
+        }
+        catch (runtime_error& e)
+        {
+            errorMessage_ = e.what();
+        }
+    }
+    
+    if (!SocketReader->isRunning())
+        SocketReader->start();
+    
+    SocketReader->registerSlave(this);
+}
+
+void
+OM_CHOP::onNewJsonOnjectReceived(const rapidjson::Document &d)
+{
+    errorMessage_ = "";
+    warningMessage_ = "";
+    
+    // check thread safety for vector
+    rapidjson::Document dcopy;
+    dcopy.CopyFrom(d, dcopy.GetAllocator());
+    
+    documentQueue_.push(move(dcopy));
+    
+    cout << "received new json" << endl;
+}
+
+void
+OM_CHOP::onSocketError(const std::string &msg)
+{
+    warningMessage_ = msg;
 }
