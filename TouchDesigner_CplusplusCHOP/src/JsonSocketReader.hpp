@@ -17,6 +17,8 @@
 
 #ifdef WIN32
     #include <winsock2.h>
+	#include <atomic>
+	#include <mutex>
 #endif
 
 #define BUFLEN 65507

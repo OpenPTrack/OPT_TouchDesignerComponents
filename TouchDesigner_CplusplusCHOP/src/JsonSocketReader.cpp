@@ -16,7 +16,7 @@
 #include "rapidjson/error/en.h"
 
 #ifdef WIN32
-    // nothing
+	#include <ws2tcpip.h>
 #else
     #include <sys/types.h>
     #include <sys/socket.h>
@@ -106,12 +106,12 @@ JsonSocketReader::setupSocket(int port)
     
 #ifdef WIN32
     DWORD timeout = 1;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+    if (WSAStartup(MAKEWORD(2, 2), &wsa_) != 0)
     {
         stringstream ss;
         ss << "WSAStartup failed " << WSAGetLastError();
         
-        throw runtime_error(ss.str())
+		throw runtime_error(ss.str());
     }
 #else
     struct timeval timeout;
