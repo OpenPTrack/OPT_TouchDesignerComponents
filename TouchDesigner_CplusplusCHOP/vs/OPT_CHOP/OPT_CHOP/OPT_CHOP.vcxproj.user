@@ -8,4 +8,14 @@
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommandArguments>C:/users/Ian/Desktop/debug.toe</LocalDebuggerCommandArguments>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LocalDebuggerCommand>C:\Program Files\Derivative\TouchDesigner099\bin\TouchDesigner099.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>$(ProjectDir)\..\..\opt.toe</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommand>C:\Program Files\Derivative\TouchDesigner099\bin\TouchDesigner099.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>$(ProjectDir)\..\..\opt.toe</LocalDebuggerCommandArguments>
+  </PropertyGroup>
 </Project>

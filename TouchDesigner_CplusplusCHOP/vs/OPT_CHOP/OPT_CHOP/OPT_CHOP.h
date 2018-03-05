@@ -6,7 +6,7 @@
 #include <vector>
 
 #ifdef WIN32
-    #include <winsock2.h>
+// nothing's here
 #else
     #include <sys/types.h>
     #include <sys/socket.h>
@@ -48,12 +48,13 @@ private:
     #ifdef WIN32
 	SOCKET s;
     WSADATA wsa;
+	int slen;
     #else
     int s;
+	unsigned int slen;
     #endif
 	
     struct sockaddr_in server, si_other;
-    unsigned int slen;
     int recv_len;
     uint64_t heartbeat, maxId;
 };
