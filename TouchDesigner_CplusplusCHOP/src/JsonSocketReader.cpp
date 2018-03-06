@@ -10,13 +10,14 @@
 
 #include <sstream>
 #include <regex>
+#include <iostream>
 
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/error/en.h"
 
 #ifdef WIN32
-    // nothing
+	#include <ws2tcpip.h>
 #else
     #include <sys/types.h>
     #include <sys/socket.h>
@@ -66,7 +67,7 @@ JsonSocketReader::start()
 void
 JsonSocketReader::stop()
 {
-    if (isActive_)
+    if (isActive_.)
     {
         isActive_ = false;
         readThread_->join();
@@ -105,13 +106,13 @@ JsonSocketReader::setupSocket(int port)
     struct sockaddr_in si_other, server;
     
 #ifdef WIN32
-    DWORD timeout = 1;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+    DWORD timeout = 1000;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa_) != 0)
     {
         stringstream ss;
         ss << "WSAStartup failed " << WSAGetLastError();
         
-        throw runtime_error(ss.str())
+		throw runtime_error(ss.str());
     }
 #else
     struct timeval timeout;
@@ -167,7 +168,7 @@ JsonSocketReader::listenSocket()
     static struct sockaddr si_other;
     static socklen_t slen = sizeof(si_other);
     
-    isActive_ = true;
+	isActive_ = true;
     
     while (isActive_)
     {
@@ -203,11 +204,17 @@ JsonSocketReader::listenSocket()
                 perror(ss.str().c_str());
             }
         }
-        else if (recvLen < 0 && (errno != EWOULDBLOCK || errno != EAGAIN))
+#ifdef WIN32
+		else if (recvLen == SOCKET_ERROR)
+#else
+        else if (recvLen == SOCKET_ERROR && (errno != EWOULDBLOCK || errno != EAGAIN))
+#endif
         {
+			std::cout << recvLen << std::endl;
+
             // socket error here
             stringstream ss;
-            ss << "Socket error (" << errno << ") occurred: " << strerror(errno);
+            ss << "Socket error (" << WSAGetLastError() << ") occurred: " << strerror(WSAGetLastError());
             
             perror(ss.str().c_str());
             // deliver socket error to all slaves
