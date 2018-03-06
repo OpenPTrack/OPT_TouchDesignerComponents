@@ -67,7 +67,7 @@ JsonSocketReader::start()
 void
 JsonSocketReader::stop()
 {
-    if (isActive_.)
+    if (isActive_)
     {
         isActive_ = false;
         readThread_->join();

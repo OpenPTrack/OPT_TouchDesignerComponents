@@ -43,10 +43,10 @@
 		AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CPlusPlus_Common.h; path = ../vs/OPT_CHOP/OPT_CHOP/CPlusPlus_Common.h; sourceTree = "<group>"; };
 		AFA994CC204A0DF500B04C98 /* OPT_CHOP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OPT_CHOP.h; path = ../vs/OPT_CHOP/OPT_CHOP/OPT_CHOP.h; sourceTree = "<group>"; };
 		AFA994CD204A0DF500B04C98 /* OPT_CHOP.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OPT_CHOP.cpp; path = ../vs/OPT_CHOP/OPT_CHOP/OPT_CHOP.cpp; sourceTree = "<group>"; };
-		AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = OM_CHOP.cpp; sourceTree = "<group>"; };
-		AFA994D2204B547F00B04C98 /* OM_CHOP.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = OM_CHOP.hpp; sourceTree = "<group>"; };
+		AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OM_CHOP.cpp; path = ../src/OM_CHOP.cpp; sourceTree = "<group>"; };
+		AFA994D2204B547F00B04C98 /* OM_CHOP.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = OM_CHOP.hpp; path = ../src/OM_CHOP.hpp; sourceTree = "<group>"; };
 		AFA994DF204B54E100B04C98 /* OM_CHOP.plugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OM_CHOP.plugin; sourceTree = BUILT_PRODUCTS_DIR; };
-		AFA994E0204B54E100B04C98 /* OM-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "OM-Info.plist"; path = "/Users/peetonn/Documents/Work/OPT_TouchDesignerComponents/TouchDesigner_CplusplusCHOP/xcode/OM-Info.plist"; sourceTree = "<absolute>"; };
+		AFA994E0204B54E100B04C98 /* OM-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "OM-Info.plist"; sourceTree = SOURCE_ROOT; };
 		AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = JsonSocketReader.cpp; path = ../src/JsonSocketReader.cpp; sourceTree = "<group>"; };
 		AFA994E3204CF63B00B04C98 /* JsonSocketReader.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = JsonSocketReader.hpp; path = ../src/JsonSocketReader.hpp; sourceTree = "<group>"; };
 		E23329D61DF092AD0002B4FE /* OPT_CHOP.plugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OPT_CHOP.plugin; sourceTree = BUILT_PRODUCTS_DIR; };
