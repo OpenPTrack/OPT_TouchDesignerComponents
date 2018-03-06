@@ -40,6 +40,7 @@
 
 /* Begin PBXFileReference section */
 		AF7DCA51204EDBB800B54885 /* defines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = defines.h; path = ../src/defines.h; sourceTree = "<group>"; };
+		AF7DCA52204EDC6800B54885 /* debug.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = debug.h; path = ../src/debug.h; sourceTree = "<group>"; };
 		AFA994CA204A0DDC00B04C98 /* CHOP_CPlusPlusBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CHOP_CPlusPlusBase.h; path = ../vs/OPT_CHOP/OPT_CHOP/CHOP_CPlusPlusBase.h; sourceTree = "<group>"; };
 		AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CPlusPlus_Common.h; path = ../vs/OPT_CHOP/OPT_CHOP/CPlusPlus_Common.h; sourceTree = "<group>"; };
 		AFA994CC204A0DF500B04C98 /* OPT_CHOP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OPT_CHOP.h; path = ../vs/OPT_CHOP/OPT_CHOP/OPT_CHOP.h; sourceTree = "<group>"; };
@@ -93,6 +94,7 @@
 		E23329F11DF1D64A0002B4FE /* CHOP */ = {
 			isa = PBXGroup;
 			children = (
+				AF7DCA52204EDC6800B54885 /* debug.h */,
 				AFA994CA204A0DDC00B04C98 /* CHOP_CPlusPlusBase.h */,
 				AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */,
 				AFA994CD204A0DF500B04C98 /* OPT_CHOP.cpp */,

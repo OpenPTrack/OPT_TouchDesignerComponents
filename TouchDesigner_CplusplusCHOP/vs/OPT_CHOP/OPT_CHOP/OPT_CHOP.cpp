@@ -4,6 +4,8 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <iostream>
+#include <sstream>
 
 #include "OPT_CHOP.h"
 #include "rapidjson/document.h"
@@ -35,7 +37,27 @@
     #define OPT_CHOP_API DLLEXPORT
 #endif
 
+#define SET_CHOP_ERROR(errexpr) (\
+{\
+    std::stringstream msg; \
+    errexpr; \
+    errorMessage_ = msg.str(); \
+    perror(msg.str().c_str()); \
+})
+
+#define SET_CHOP_ERROR(errexpr) (\
+{\
+    std::stringstream msg; \
+    errexpr; \
+    warningMessage_ = msg.str(); \
+    perror(msg.str().c_str()); \
+})
+
+#define PRINT_MSG
+
 #define PORT 21234
+
+using namespace std;
 
 //Required functions.
 extern "C"
@@ -84,20 +106,24 @@ heartbeat(0), maxId(0)
     timeout.tv_usec = 100;
 #endif
     
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET) {
-		printf("Could not create socket: %d", WSAGetLastError());
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
+    {
+        SET_CHOP_ERROR(msg << "Socket creation failure (" << WSAGetLastError() << "): " << strerror(WSAGetLastError()));
 	}
 
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = INADDR_ANY;
 	server.sin_port = htons(PORT);
     
-	if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
-		perror("Error");
+	if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+    {
+        SET_CHOP_ERROR(msg << "Socket configuration error (" << WSAGetLastError() << "): " << strerror(WSAGetLastError()));
 	}
-	if (bind(s, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR) {
-		printf("WinSock bind failed");
-	}
+    
+    if (:: bind(s, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR)
+    {
+        SET_CHOP_ERROR(msg << "Socket bind failure (" << WSAGetLastError() << "): " << strerror(WSAGetLastError()));
+    }
 }
 
 OPT_CHOP::~OPT_CHOP()
@@ -119,8 +145,8 @@ void OPT_CHOP::getGeneralInfo(CHOP_GeneralInfo * ginfo)
 
 bool OPT_CHOP::getOutputInfo(CHOP_OutputInfo * info)
 {
-	//OPT Streaming data (ID, age, confidence, x, y, height).
-	info->numChannels = 6;
+	//OPT Streaming data (ID, isAlive age, confidence, x, y, height).
+	info->numChannels = 7;
 
 	//Sets the maximum number of people to be tracked.
 	info->numSamples = info->opInputs->getParInt("Maxtracked");
@@ -148,6 +174,10 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
 	//If buffer isn't empty then parse and update channels.
     if (buf[0] != '\0') {
         
+#ifdef PRINT_MSG
+        cout << "received msg: " << buf << endl;
+#endif
+        
         //Create objects to hold incoming data
         std::vector<float> NewTracks;
         rapidjson::Document d;
@@ -161,6 +191,12 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
         {
             heartbeat++;
             maxId = d["max_ID"].GetInt();
+            
+            const rapidjson::Value& arr = d["alive_IDs"].GetArray();
+            aliveIds_.clear();
+            
+            for (int i = 0; i < arr.Size(); ++i)
+                aliveIds_.insert(arr[i].GetInt());
         }
         else //Get all of the tracks from JSON.
         {
@@ -172,7 +208,8 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
                 for (rapidjson::SizeType i = 0; i < tracks.Size(); i++)
                 {
                     //Create a vector of new tracks data.
-                    std::vector<float> incoming = {	float(tracks[i]["age"].GetFloat()),
+                    std::vector<float> incoming = {
+                        float(tracks[i]["age"].GetFloat()),
                         float(tracks[i]["confidence"].GetFloat()),
                         float(tracks[i]["x"].GetFloat()),
                         float(tracks[i]["y"].GetFloat()),
@@ -246,16 +283,18 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
                         output->channels[3][i] = 0;
                         output->channels[4][i] = 0;
                         output->channels[5][i] = 0;
+                        output->channels[6][i] = 0;
                     }
                     else {
                         if (data.find(lookupid) != data.end())
                         {
                             //Lookup track data based on ID in data map.
-                            output->channels[1][i] = data[lookupid][0]; //age
-                            output->channels[2][i] = data[lookupid][1]; //confidence
-                            output->channels[3][i] = data[lookupid][2]; //x
-                            output->channels[4][i] = data[lookupid][3]; //y
-                            output->channels[5][i] = data[lookupid][4]; //height
+                            output->channels[1][i] = (float)(aliveIds_.find(lookupid) != aliveIds_.end()); // isAlive
+                            output->channels[2][i] = data[lookupid][0]; //age
+                            output->channels[3][i] = data[lookupid][1]; //confidence
+                            output->channels[4][i] = data[lookupid][3]; //x
+                            output->channels[5][i] = data[lookupid][4]; //y
+                            output->channels[6][i] = data[lookupid][5]; //height
                         }
                     }
                 } // for

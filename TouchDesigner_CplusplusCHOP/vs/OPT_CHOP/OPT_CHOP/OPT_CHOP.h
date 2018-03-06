@@ -4,6 +4,7 @@
 #include "CHOP_CPlusPlusBase.h"
 #include <map>
 #include <vector>
+#include <set>
 
 #ifdef WIN32
 // nothing's here
@@ -37,13 +38,26 @@ public:
 
 	virtual void setupParameters(OP_ParameterManager * manager) override;
 
+    virtual const char* getWarningString() override
+    {
+        return (warningMessage_.size() ? warningMessage_.c_str() : NULL);
+    }
+    
+    virtual const char* getErrorString() override
+    {
+        return (errorMessage_.size() ? errorMessage_.c_str() : NULL);
+    }
+    
 private:
+    std::string errorMessage_, warningMessage_;
+    
 	const OP_NodeInfo *myNodeInfo;
 	char buf[BUFLEN];
 	bool listening;
 	int seq;
-	const char* names[6] = { "id", "age", "confidence", "x", "y", "height"};
+	const char* names[7] = { "id", "isAlive", "age", "confidence", "x", "y", "height"};
 	std::map<float, std::vector<float>> data;
+    std::set<int> aliveIds_;
 
     #ifdef WIN32
 	SOCKET s;
