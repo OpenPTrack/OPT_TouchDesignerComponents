@@ -221,7 +221,7 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_TEMP_DIR = "$(PROJECT_TEMP_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
-				HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../vs/OPT_CHOP/OPT_CHOP/";
+				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = "OM-Info.plist";
 				INSTALL_PATH = /;
 				OTHER_CPLUSPLUSFLAGS = (
@@ -230,7 +230,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = edu.ucla.remap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../vs/OPT_CHOP/OPT_CHOP";
+				USER_HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../thirdparty";
 				WRAPPER_EXTENSION = plugin;
 			};
 			name = Debug;
@@ -239,7 +239,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
-				HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../vs/OPT_CHOP/OPT_CHOP/";
+				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = "OM-Info.plist";
 				INSTALL_PATH = /;
 				OTHER_CPLUSPLUSFLAGS = (
@@ -248,7 +248,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = edu.ucla.remap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../vs/OPT_CHOP/OPT_CHOP";
+				USER_HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../thirdparty";
 				WRAPPER_EXTENSION = plugin;
 			};
 			name = Release;
