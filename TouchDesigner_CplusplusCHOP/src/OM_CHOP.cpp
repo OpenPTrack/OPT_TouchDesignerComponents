@@ -14,6 +14,7 @@
 
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include "defines.h"
 
 #ifdef WIN32
     #include <winsock2.h>
@@ -28,14 +29,12 @@
     #define WSAGetLastError() errno
 #endif
 
-#define OM_CHOP_API
-
 #ifdef WIN32
-    #ifdef OM_CHOP_API
+//    #ifdef OM_CHOP_API
         #define OM_CHOP_API __declspec(dllexport)
-    #else
-        #define OM_CHOP_API __declspec(dllimport)
-    #endif
+//    #else
+//        #define OM_CHOP_API __declspec(dllimport)
+//    #endif
 #else
     #define OM_CHOP_API DLLEXPORT
 #endif
@@ -459,7 +458,7 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
 {
     rapidjson::Value idorder;
     
-    if (retireve("idorder", messages, idorder))
+    if (retireve(OM_JSON_IDORDER, messages, idorder))
     {
         const rapidjson::Value& arr = idorder.GetArray();
         for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
@@ -471,7 +470,7 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
     // cleanupt idorder by alive ids
     rapidjson::Value aliveids;
     
-    if (retireve("alive_IDs", messages, aliveids))
+    if (retireve(OM_JSON_ALIVEIDS, messages, aliveids))
     {
         set<int> aliveIds;
         const rapidjson::Value& arr = aliveids.GetArray();
@@ -502,7 +501,7 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
     
     {
         rapidjson::Value firstDirs;
-        if (retireve("firstdirs", messages, firstDirs))
+        if (retireve(OM_JSON_FIRSTDERS, messages, firstDirs))
         {
             int idx = 0;
             const rapidjson::Value& arr = firstDirs.GetArray();
@@ -521,7 +520,7 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
         } // if
 
         rapidjson::Value secondDirs;
-        if (retireve("seconddirs", messages, secondDirs))
+        if (retireve(OM_JSON_SECONDDERS, messages, secondDirs))
         {
             int idx = 0;
             const rapidjson::Value& arr = secondDirs.GetArray();
@@ -555,7 +554,7 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
         cout << "pairwise mat: " << endl;
 #endif
         rapidjson::Value pairwise;
-        if (retireve("pairwise", messages, pairwise))
+        if (retireve(OM_JSON_PAIRWISE, messages, pairwise))
         {
             rapidjson::Value arr = pairwise.GetArray();
             
@@ -610,7 +609,7 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
     {
         rapidjson::Value clusters;
         
-        if (retireve("clustercenters", messages, clusters))
+        if (retireve(OM_JSON_CLUSTERCENTERS, messages, clusters))
         {
             rapidjson::Value arr = clusters.GetArray();
 
@@ -622,7 +621,7 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
         }
         
         rapidjson::Value spreads;
-        if (retireve("spreads", messages, spreads))
+        if (retireve(OM_JSON_CLUSTERSPREADS, messages, spreads))
         {
             rapidjson::Value arr = spreads.GetArray();
             
