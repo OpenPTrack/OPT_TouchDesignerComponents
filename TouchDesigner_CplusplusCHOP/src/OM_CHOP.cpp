@@ -11,10 +11,12 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <chrono>
 
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "defines.h"
+#include "debug.h"
 
 #ifdef WIN32
     #include <winsock2.h>
@@ -40,30 +42,56 @@
 #endif
 
 #define PORTNUM 21235
-#define OPENMOVES_MSG_BUNDLE 2
-#define PAIRWISE_MAXDIM 20
 
-#define PRINT_MESSAGES
-//#define PRINT_IDS
-//#define PRINT_DERIVATIVES
-#define PRINT_PAIRWISE
-//#define PRINT_CLUSTERS
+#define MESSAGE_QUEUE_THRESHOLD 500
+#define MESSAGE_LIFETIME_MS 2000
+#define OPENMOVES_MSG_BUNDLE 2
+
+#define PAIRWISE_MAXDIM 25
+#define PAIRWISE_WIDTH (PAIRWISE_MAXDIM+1)
+#define PAIRWISE_HEIGHT (PAIRWISE_MAXDIM)
+#define PAIRWISE_SIZE (PAIRWISE_WIDTH*PAIRWISE_HEIGHT)
 
 using namespace std;
+using namespace std::chrono;
 
 static const char* DerOutNames[5] = { "id", "d1x", "d1y", "d2x", "d2y"};
-static const char* ClusterOutNames[5] = { "x", "y", "spread"};
+static const char* StageDistNames[5] = { "id", "us", "ds", "sl", "sr"};
+static const char* ClusterOutNames[3] = { "x", "y", "spread"};
+static const char* HotspotsOutNames[3] = { "x", "y", "spread"};
 
-#define NPAR_OUTPUT 4
+#define NPAR_OUTPUT 7
 #define PAR_OUTPUT  "Output"
-static const char *names[] = { "Derivatives", "Pairwise", "Dwt", "Clusters" };
-static const char *labels[] = { "Derivatives", "Pairwise matrix", "DWT", "Clusters" };
+#define PAR_MAXTRACKED "Maxtracked"
+
+static const char *menuNames[] = { "Derivatives", "Pairwise", "Dtw", "Clusters", "Hotspots", "Pca", "Stagedist" };
+static const char *labels[] = { "Derivatives", "Pairwise matrix", "DTW", "Clusters", "Hotspots", "PCA", "Stage Distances" };
 static map<std::string, OM_CHOP::OutChoice> OutputMenuMap = {
+    { "Uknown", OM_CHOP::OutChoice::Unknown },
     { "Derivatives", OM_CHOP::OutChoice::Derivatives },
     { "Pairwise", OM_CHOP::OutChoice::Pairwise },
-    { "Dwt", OM_CHOP::OutChoice::Dwt },
-    { "Clusters", OM_CHOP::OutChoice::Cluster }
+    { "Dtw", OM_CHOP::OutChoice::Dtw },
+    { "Clusters", OM_CHOP::OutChoice::Cluster },
+    { "Hotspots", OM_CHOP::OutChoice::Hotspots },
+    { "Pca", OM_CHOP::OutChoice::Pca },
+    { "Stagedist", OM_CHOP::OutChoice::Stagedist }
 };
+
+#define SET_CHOP_ERROR(errexpr) (\
+{\
+std::stringstream msg; \
+errexpr; \
+errorMessage_ = msg.str(); \
+printf("%s\n", msg.str().c_str());\
+})
+
+#define SET_CHOP_WARN(errexpr) (\
+{\
+std::stringstream msg; \
+errexpr; \
+warningMessage_ = msg.str(); \
+printf("%s\n", msg.str().c_str());\
+})
 
 //Required functions.
 extern "C"
@@ -95,22 +123,43 @@ extern "C"
 
 static shared_ptr<JsonSocketReader> SocketReader;
 
+string bundleToString(const vector<rapidjson::Document>& bundle)
+{
+    stringstream ss;
+    
+    for (auto& d:bundle)
+    {
+        rapidjson::StringBuffer buffer;
+        buffer.Clear();
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        d.Accept(writer);
+        
+        ss << buffer.GetString() << endl;
+    }
+    
+    return ss.str();
+}
+
+//******************************************************************************
 OM_CHOP::OM_CHOP(const OP_NodeInfo * info):
 errorMessage_(""), warningMessage_(""),
 outChoice_(Derivatives)
 {
-    setupSocketReader();
+    pairwiseMat_ = (float*)malloc(PAIRWISE_SIZE*sizeof(float));
+    dtwMat_ = (float*)malloc(PAIRWISE_SIZE*sizeof(float));
     
-    for (int i = 0; i < PAIRWISE_MAXDIM; i++)
-    {
-        pairwiseMatrix_.push_back(vector<float>(PAIRWISE_MAXDIM+1, -1));
-        pairwiseMatrix_[i][0] = 0;
-    }
+    memset(pairwiseMat_, -1, PAIRWISE_SIZE);
+    memset(dtwMat_, -1, PAIRWISE_SIZE);
+    
+    setupSocketReader();
 }
 
 OM_CHOP::~OM_CHOP()
 {
-    SocketReader->unregisterSlave(this);
+    if (SocketReader)
+        SocketReader->unregisterSlave(this);
+    
+    free(pairwiseMat_);
 }
 
 void OM_CHOP::getGeneralInfo(CHOP_GeneralInfo * ginfo)
@@ -121,22 +170,25 @@ void OM_CHOP::getGeneralInfo(CHOP_GeneralInfo * ginfo)
 
 bool OM_CHOP::getOutputInfo(CHOP_OutputInfo * info)
 {
+    info->numSamples = info->opInputs->getParInt(PAR_MAXTRACKED);
     
     switch (outChoice_) {
         case Derivatives:
-            info->numSamples = info->opInputs->getParInt("Maxtracked");
             info->numChannels = 5; // id d1x d1y d2x d2y
             break;
-        case Pairwise:
-            info->numSamples = PAIRWISE_MAXDIM+1;
-            info->numChannels = PAIRWISE_MAXDIM;
-            break;
-        case Dwt:
-            info->numChannels = 0;
+        case Pairwise: // fallthrough
+        case Dtw:
+            info->numSamples = info->opInputs->getParInt(PAR_MAXTRACKED)+1;
+            info->numChannels = info->opInputs->getParInt(PAR_MAXTRACKED);
             break;
         case Cluster:
-            info->numSamples = info->opInputs->getParInt("Maxclusters");
             info->numChannels = 3; // x y spread
+            break;
+        case Stagedist:
+            info->numChannels = 5; // id US DS SL SR
+            break;
+        case Hotspots:
+            info->numChannels = 3; // x y z
             break;
         default:
             break;
@@ -153,16 +205,27 @@ const char* OM_CHOP::getChannelName(int index, void* reserved)
             return DerOutNames[index];
         }
             break;
-        case Pairwise:
+        case Pairwise: // fallthrough
+        case Dtw:
         {
             stringstream ss;
-            ss << "idx" << index;
+            ss << "row" << index;
             
             return ss.str().c_str();
         }
         case Cluster:
         {
             return ClusterOutNames[index];
+        }
+            break;
+        case Stagedist:
+        {
+            return StageDistNames[index];
+        }
+            break;
+        case Hotspots:
+        {
+            return HotspotsOutNames[index];
         }
             break;
         default:
@@ -174,6 +237,8 @@ const char* OM_CHOP::getChannelName(int index, void* reserved)
 
 void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserved)
 {
+    double nowTs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    
     checkInputs(output, inputs, reserved);
     processQueue();
     
@@ -183,51 +248,63 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
     }
     else
     {
+        string bundleStr;
+        vector<int> idOrder;
+        map<int, pair<float,float>> derivatives1;
+        map<int, pair<float,float>> derivatives2;
+        map<int, vector<float>> dwtDistances;
+        vector<vector<float>> clusters;
+        map<int, vector<float>> stageDistances;
+        vector<vector<float>> hotspotsData;
         
-        std::vector<int> idOrder;
-        std::map<int, std::pair<float,float>> derivatives1;
-        std::map<int, std::pair<float,float>> derivatives2;
-        std::map<int, std::vector<float>> dwtDistances;
-        std::vector<std::vector<float>> clusters;
-        std::vector<std::vector<float>> pairwiseMatrix;
-        
-        for (int i = 0; i < PAIRWISE_MAXDIM; i++)
-        {
-            pairwiseMatrix.push_back(vector<float>(PAIRWISE_MAXDIM+1, -1));
-            pairwiseMatrix[i][0] = 0;
-        }
         
         if (!queueBusy_)
         {
-            if (messages_.size() && messages_.begin()->second.size() >= OPENMOVES_MSG_BUNDLE)
+            lock_guard<mutex> lock(messagesMutex_);
+            
+            for (MessagesQueue::iterator it = messages_.begin(); it != messages_.end(); /* NO INCREMENT HERE */)
             {
-                MessagesQueue::iterator msgtuple = messages_.begin();
-                std::vector<rapidjson::Document>& msgs = msgtuple->second;
-                
+                if ((*it).second.second.size() >= OPENMOVES_MSG_BUNDLE)
+                {
+                    std::vector<rapidjson::Document>& msgs = (*it).second.second;
+                    bundleStr = bundleToString(msgs);
+                    
 #ifdef PRINT_MESSAGES
-                for (auto& m:msgs)
-                {
-                    rapidjson::StringBuffer buffer;
-                    buffer.Clear();
-                    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-                    m.Accept(writer);
-                    
-                    cout << "got message: " << buffer.GetString() << endl;
-                }
+                    for (auto& m:msgs)
+                    {
+                        rapidjson::StringBuffer buffer;
+                        buffer.Clear();
+                        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                        m.Accept(writer);
+                        cout << "got message: " << buffer.GetString() << endl;
+                    }
 #endif
-                
-                processMessages(msgs, idOrder,
-                                derivatives1, derivatives2,
-                                dwtDistances,
-                                pairwiseMatrix,//pairwiseMatrix_,
-                                clusters);
-                
-                {
-                    lock_guard<mutex> lock(messagesMutex_);
                     
-                    messages_.erase(msgtuple);
+                    processMessages(msgs, idOrder,
+                                    derivatives1, derivatives2,
+                                    pairwiseMat_,
+                                    clusters,
+                                    stageDistances,
+                                    hotspotsData,
+                                    dtwMat_);
+                    messages_.erase(it++);
+                    
+                    break;
+                } // if messages bundle
+                else
+                {
+                    // check message timestamp and delete it if it's too old
+                    if (nowTs-(*it).second.first >= MESSAGE_LIFETIME_MS)
+                    {
+                        SET_CHOP_WARN(msg << "Cleaning up old unprocessed message bundle (id " << (*it).first
+                                      << "). This normally should not happen, check incoming messages bundle length. Deleted: "
+                                      << bundleStr);
+                        messages_.erase(it++);
+                    }
+                    else
+                        ++it;
                 }
-            } // if messages bundle
+            }
         } // if queue not busy
         
         switch (outChoice_) {
@@ -238,13 +315,21 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     int id = pair.first;
                     // get sample idx of this id
                     std::vector<int>::iterator it = std::find(idOrder.begin(), idOrder.end(), id);
-                    assert(it != idOrder.end());
                     
-                    long sampleIdx = it-idOrder.begin();
-                    
-                    output->channels[0][sampleIdx] = id;
-                    output->channels[1][sampleIdx] = pair.second.first;
-                    output->channels[2][sampleIdx] = pair.second.first;
+                    if (it == idOrder.end())
+                    {
+                        SET_CHOP_WARN(msg << "1st Derivatives id (" << id << ") was not found in available id"
+                                      " list. Message bundle: " << bundleStr);
+//                        assert(it != idOrder.end());
+                    }
+                    else
+                    {
+                        long sampleIdx = it-idOrder.begin();
+                        
+                        output->channels[0][sampleIdx] = id;
+                        output->channels[1][sampleIdx] = pair.second.first;
+                        output->channels[2][sampleIdx] = pair.second.second;
+                    }
                 }
                 
                 for (auto pair:derivatives2) // { id -> <dx,dy> }
@@ -252,33 +337,41 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     int id = pair.first;
                     // get sample idx of this id
                     std::vector<int>::iterator it = std::find(idOrder.begin(), idOrder.end(), id);
-                    assert(it != idOrder.end());
                     
-                    long sampleIdx = it-idOrder.begin();
-                    
-                    output->channels[3][sampleIdx] = pair.second.first;
-                    output->channels[4][sampleIdx] = pair.second.first;
+                    if (it == idOrder.end())
+                    {
+                        SET_CHOP_WARN(msg << "2nd Derivatives id (" << id << ") was not found in available id"
+                                      " list. Message bundle: " << bundleStr);
+//                        assert(it != idOrder.end());
+                    }
+                    else
+                    {
+                        long sampleIdx = it-idOrder.begin();
+                        
+                        output->channels[3][sampleIdx] = pair.second.first;
+                        output->channels[4][sampleIdx] = pair.second.second;
+                    }
                 }
             }
                 break;
             case Pairwise:
             {
 #ifdef PRINT_PAIRWISE
-                cout << "pairwise corner: " << endl;
-                for (int i = 0; i < PAIRWISE_MAXDIM/5; ++i)
+                cout << "pairwise: " << endl;
+                for (int i = 0; i < output->numSamples; ++i)
                 {
-                    for (int j = 0; j < PAIRWISE_MAXDIM/5; ++j)
-                        cout << pairwiseMatrix[i][j] << " ";
+                    for (int j = 0; j < output->numSamples; ++j)
+                        cout << pairwiseMat_[i*PAIRWISE_WIDTH+j] << " ";
                     cout << endl;
                 }
 #endif
                 
                 for (int chanIdx = 0; chanIdx < output->numChannels; chanIdx++)
                     for (int sampleIdx = 0; sampleIdx < output->numSamples; sampleIdx++)
-                        output->channels[chanIdx][sampleIdx] = pairwiseMatrix[chanIdx][sampleIdx];
+                        output->channels[chanIdx][sampleIdx] = pairwiseMat_[chanIdx*PAIRWISE_WIDTH+sampleIdx];
             }
                 break;
-            case Dwt:
+            case Dtw:
             {
                 
             }
@@ -293,11 +386,48 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                         output->channels[1][sampleIdx] = clusters[sampleIdx][1];
                         output->channels[2][sampleIdx] = clusters[sampleIdx][2];
                     }
+                }
+            }
+                break;
+            case Stagedist:
+            {
+                for (auto pair:stageDistances) // { id -> <dx,dy> }
+                {
+                    int id = pair.first;
+                    // get sample idx of this id
+                    std::vector<int>::iterator it = std::find(idOrder.begin(), idOrder.end(), id);
+                    
+                    if (it == idOrder.end())
+                        SET_CHOP_WARN(msg << "stagedist id (" << id << ") was not found in available id"
+                                      " list. Message bundle: " << bundleStr);
                     else
                     {
-                        output->channels[0][sampleIdx] = 0;
-                        output->channels[1][sampleIdx] = 0;
-                        output->channels[2][sampleIdx] = -1;
+                        long sampleIdx = it-idOrder.begin();
+                        
+                        if (pair.second.size() >= 4)
+                        {
+                            output->channels[0][sampleIdx] = id;
+                            
+                            output->channels[1][sampleIdx] = pair.second[0];
+                            output->channels[2][sampleIdx] = pair.second[1];
+                            output->channels[3][sampleIdx] = pair.second[2];
+                            output->channels[4][sampleIdx] = pair.second[3];
+                        }
+                        else
+                            SET_CHOP_WARN(msg << "Insufficient data on stage dists (only " << pair.second.size() << " elements instead of 4)");
+                    }
+                }
+            }
+                break;
+            case Hotspots:
+            {
+                for (int sampleIdx = 0; sampleIdx < output->numSamples; sampleIdx++)
+                {
+                    if (sampleIdx < hotspotsData.size())
+                    {
+                        output->channels[0][sampleIdx] = hotspotsData[sampleIdx][0];
+                        output->channels[1][sampleIdx] = hotspotsData[sampleIdx][1];
+                        output->channels[2][sampleIdx] = hotspotsData[sampleIdx][2];
                     }
                 }
             }
@@ -328,42 +458,31 @@ OM_CHOP::getInfoCHOPChan(int32_t index,
 void OM_CHOP::setupParameters(OP_ParameterManager* manager)
 {
     {
-        //Create new parameter
-        OP_NumericParameter MaxTracked;
-        
-        //Parameter details
-        MaxTracked.name = "Maxtracked";
-        MaxTracked.label = "Max Tracked";
-        MaxTracked.page = "OPT General";
-        MaxTracked.defaultValues[0] = 1;
-        MaxTracked.minValues[0] = 1;
-        
-        //Add it to CHOP.
-        OP_ParAppendResult res = manager->appendInt(MaxTracked);
-        assert(res == OP_ParAppendResult::Success);
-    }
-    
-    {
         OP_StringParameter output(PAR_OUTPUT);
         
         output.label = "Output";
         output.page = "Output";
         output.defaultValue = "Derivatives";
         
-        OP_ParAppendResult res = manager->appendMenu(output, NPAR_OUTPUT, (const char**)names, (const char**)labels);
+        OP_ParAppendResult res = manager->appendMenu(output, NPAR_OUTPUT, (const char**)menuNames,
+                                                     (const char**)labels);
         assert(res == OP_ParAppendResult::Success);
-        
-        OP_NumericParameter maxClusters;
+    }
+    
+    {
+        //Create new parameter
+        OP_NumericParameter MaxTracked;
         
         //Parameter details
-        maxClusters.name = "Maxclusters";
-        maxClusters.label = "Max Clusters";
-        maxClusters.page = "Output";
-        maxClusters.defaultValues[0] = 4;
-        maxClusters.minValues[0] = 1;
+        MaxTracked.name = PAR_MAXTRACKED;
+        MaxTracked.label = "Max Tracked";
+        MaxTracked.page = "Output";
+        MaxTracked.defaultValues[0] = 1;
+        MaxTracked.minValues[0] = 1;
+        MaxTracked.maxValues[0] = PAIRWISE_MAXDIM;
         
         //Add it to CHOP.
-        res = manager->appendInt(maxClusters);
+        OP_ParAppendResult res = manager->appendInt(MaxTracked);
         assert(res == OP_ParAppendResult::Success);
     }
 }
@@ -372,27 +491,26 @@ void OM_CHOP::setupParameters(OP_ParameterManager* manager)
 void
 OM_CHOP::setupSocketReader()
 {
-    if (!SocketReader)
+    try
     {
-        try
-        {
-            errorMessage_ = "";
+        errorMessage_ = "";
+        
+        if (!SocketReader)
             SocketReader = make_shared<JsonSocketReader>(PORTNUM);
-        }
-        catch (runtime_error& e)
-        {
-            errorMessage_ = e.what();
-        }
+        
+        if (!SocketReader->isRunning())
+            SocketReader->start();
+        
+        SocketReader->registerSlave(this);
     }
-    
-    if (!SocketReader->isRunning())
-        SocketReader->start();
-    
-    SocketReader->registerSlave(this);
+    catch (runtime_error& e)
+    {
+        SET_CHOP_ERROR(msg << e.what());
+    }
 }
 
 void
-OM_CHOP::onNewJsonOnjectReceived(const rapidjson::Document &d)
+OM_CHOP::onNewJsonObjectReceived(const rapidjson::Document &d)
 {
     errorMessage_ = "";
     warningMessage_ = "";
@@ -410,14 +528,16 @@ OM_CHOP::onNewJsonOnjectReceived(const rapidjson::Document &d)
 }
 
 void
-OM_CHOP::onSocketError(const std::string &msg)
+OM_CHOP::onSocketReaderError(const std::string &m)
 {
-    warningMessage_ = msg;
+    SET_CHOP_WARN(msg << m);
 }
 
 void
 OM_CHOP::processQueue()
 {
+    double nowTs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    
     lock_guard<mutex> lock(documentQueueMutex_);
     // this function goes over queue and moves them over to messages dict
     while (documentQueue_.size())
@@ -432,18 +552,30 @@ OM_CHOP::processQueue()
             seqNo = documentQueue_.front()["header"]["seq"].GetInt();
         }
         else
-            perror("Bad json formatting");
+            SET_CHOP_WARN(msg << "Bad json formatting: can't locate 'seq' field");
         
         if (seqNo >= 0)
         {
             if (messages_.find(seqNo) == messages_.end())
-                messages_[seqNo] = vector<rapidjson::Document>();
+                messages_[seqNo] = pair<double, vector<rapidjson::Document>>(nowTs, vector<rapidjson::Document>());
             
-            messages_[seqNo].push_back(move(documentQueue_.front()));
+            messages_[seqNo].second.push_back(move(documentQueue_.front()));
         }
         
         documentQueue_.pop();
-//        cout << "document queue " << documentQueue_.size() << " messages queue " << messages_.size() << endl;
+#ifdef PRINT_MSG_QUEUE
+        float avgBundleLen = 0;
+        for (auto& t:messages_) avgBundleLen += t.second.second.size();
+        avgBundleLen /= (float)messages_.size();
+        
+        cout << "document queue " << documentQueue_.size() << " messages queue "
+            << messages_.size() << " avg bundle len " << avgBundleLen << endl;
+#endif
+        if (messages_.size() >= MESSAGE_QUEUE_THRESHOLD)
+            SET_CHOP_WARN(msg << "Incoming message queue is too large - " << messages_.size()
+                          << " (data is received, but not processed). Check openmoves message "
+                          "bundle size (current bundle size is "
+                          << OPENMOVES_MSG_BUNDLE << "; was the protocol updated?)");
     }
 }
 
@@ -452,91 +584,116 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
                          std::vector<int>& idOrder,
                          std::map<int, std::pair<float,float>>& derivatives1,
                          std::map<int, std::pair<float,float>>& derivatives2,
-                         std::map<int, std::vector<float>>&,
-                         std::vector<std::vector<float>>& pairwiseMatrix,
-                         std::vector<std::vector<float>>& clustersData)
+                         float* pairwiseMatrix,
+                         std::vector<std::vector<float>>& clustersData,
+                         std::map<int, std::vector<float>>& stageDistances,
+                         std::vector<std::vector<float>>& hotspotsData,
+                         float* dtwMatrix)
 {
-    rapidjson::Value idorder;
-    
-    if (retireve(OM_JSON_IDORDER, messages, idorder))
-    {
-        const rapidjson::Value& arr = idorder.GetArray();
-        for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+    { // retrieving id order
+        rapidjson::Value idorder;
+        
+        if (retireve(OM_JSON_IDORDER, messages, idorder))
         {
-            idOrder.push_back(arr[i].GetInt());
-        }
-    }
-    
-    // cleanupt idorder by alive ids
-    rapidjson::Value aliveids;
-    
-    if (retireve(OM_JSON_ALIVEIDS, messages, aliveids))
-    {
-        set<int> aliveIds;
-        const rapidjson::Value& arr = aliveids.GetArray();
-        
-        for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
-            aliveIds.insert(arr[i].GetInt());
-        
-        nAliveIds_ = aliveIds.size();
-        
-        int idx = 0;
-        while (idOrder.size() != aliveIds.size() && idx < idOrder.size())
-        {
-            int searchId = *(idOrder.begin()+idx);
-            
-            if (aliveIds.find(searchId) == aliveIds.end()) // id is not in aliveIds -> delete it from idOrder
-                idOrder.erase(idOrder.begin()+idx);
+            if (!idorder.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_IDORDER << " is not an array." );
             else
-                idx++;
+            {
+                const rapidjson::Value& arr = idorder.GetArray();
+                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+                    idOrder.push_back(arr[i].GetInt());
+            }
         }
+        else
+            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_IDORDER << " in received json messages");
+        
+        // cleanupt idorder by alive ids
+        rapidjson::Value aliveids;
+        
+        if (retireve(OM_JSON_ALIVEIDS, messages, aliveids))
+        {
+            set<int> aliveIds;
+            const rapidjson::Value& arr = aliveids.GetArray();
+            
+            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+                aliveIds.insert(arr[i].GetInt());
+            
+            nAliveIds_ = aliveIds.size();
+            
+            int idx = 0;
+            while (idOrder.size() != aliveIds.size() && idx < idOrder.size())
+            {
+                int searchId = *(idOrder.begin()+idx);
+                
+                if (aliveIds.find(searchId) == aliveIds.end()) // id is not in aliveIds -> delete it from idOrder
+                    idOrder.erase(idOrder.begin()+idx);
+                else
+                    idx++;
+            }
+        }
+        else
+            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_ALIVEIDS << " in received json messages");
+        
+#ifdef PRINT_IDS
+        cout << "filtered ids: ";
+        for (auto id:idOrder)
+            cout << id << " ";
+        cout << endl;
+#endif
     }
     
-#ifdef PRINT_IDS
-    cout << "filtered ids: ";
-    for (auto id:idOrder)
-        cout << id << " ";
-    cout << endl;
-#endif
-    
-    {
+    { // retrieving derivatives
         rapidjson::Value firstDirs;
         if (retireve(OM_JSON_FIRSTDERS, messages, firstDirs))
         {
-            int idx = 0;
-            const rapidjson::Value& arr = firstDirs.GetArray();
-            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+            if (!firstDirs.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+            else
             {
-                int id = idOrder[idx++];
-                derivatives1[id] = pair<float, float>(0,0);
-                
-                // if value is string then it's "Null" -> skip
-                if (!arr[i].GetArray()[0].IsString())
+                int idx = 0;
+                const rapidjson::Value& arr = firstDirs.GetArray();
+                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
                 {
-                    derivatives1[id].first = arr[i].GetArray()[0].GetFloat();
-                    derivatives1[id].second = arr[i].GetArray()[1].GetFloat();
-                }
-            } // for i
+                    int id = idOrder[idx++];
+                    derivatives1[id] = pair<float, float>(0,0);
+                    
+                    // if value is string then it's "Null" -> skip
+                    if (!arr[i].GetArray()[0].IsString())
+                    {
+                        derivatives1[id].first = arr[i].GetArray()[0].GetFloat();
+                        derivatives1[id].second = arr[i].GetArray()[1].GetFloat();
+                    }
+                } // for i
+            }
         } // if
+        else
+            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_FIRSTDERS << " in received json messages");
 
         rapidjson::Value secondDirs;
         if (retireve(OM_JSON_SECONDDERS, messages, secondDirs))
         {
-            int idx = 0;
-            const rapidjson::Value& arr = secondDirs.GetArray();
-            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+            if (!firstDirs.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+            else
             {
-                int id = idOrder[idx++];
-                derivatives2[id] = pair<float, float>(0,0);
-                
-                // if value is string then it's "Null" -> skip
-                if (!arr[i].GetArray()[0].IsString())
+                int idx = 0;
+                const rapidjson::Value& arr = secondDirs.GetArray();
+                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
                 {
-                    derivatives2[id].first = arr[i].GetArray()[0].GetFloat();
-                    derivatives2[id].second = arr[i].GetArray()[1].GetFloat();
-                }
-            } // for i
+                    int id = idOrder[idx++];
+                    derivatives2[id] = pair<float, float>(0,0);
+                    
+                    // if value is string then it's "Null" -> skip
+                    if (!arr[i].GetArray()[0].IsString())
+                    {
+                        derivatives2[id].first = arr[i].GetArray()[0].GetFloat();
+                        derivatives2[id].second = arr[i].GetArray()[1].GetFloat();
+                    }
+                } // for i
+            }
         } // if
+        else
+            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_SECONDDERS << " in received json messages");
     }
     
 #ifdef PRINT_DERIVATIVES
@@ -550,93 +707,224 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
 #endif
     
     {
-#ifdef PRINT_PAIRWISE2
-        cout << "pairwise mat: " << endl;
-#endif
         rapidjson::Value pairwise;
         if (retireve(OM_JSON_PAIRWISE, messages, pairwise))
         {
-            rapidjson::Value arr = pairwise.GetArray();
-            
-            for (int i = 0; i < PAIRWISE_MAXDIM; ++i)
+            if (!pairwise.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PAIRWISE << " is not an array");
+            else
             {
-                bool hasRow = (i < arr.Size());
-                rapidjson::Value row;
+                rapidjson::Value arr = pairwise.GetArray();
                 
-                if (hasRow)
-                    row = arr[i].GetArray();
-                
-                for (int j = 0; j < PAIRWISE_MAXDIM+1; ++j)
+                for (int i = 0; i < PAIRWISE_HEIGHT; ++i)
                 {
-                    if (j == 0) // this is for ids
+                    bool hasRow = (i < arr.Size());
+                    rapidjson::Value row;
+                    
+                    if (hasRow)
+                        row = arr[i].GetArray();
+                    
+                    for (int j = 0; j < PAIRWISE_WIDTH; ++j)
                     {
-                        if (i < idOrder.size())
+                        if (j == 0) // this is for ids
                         {
-                            int id = idOrder[i];
-                            pairwiseMatrix[i][j] = id;
+                            if (i < idOrder.size())
+                            {
+                                int id = idOrder[i];
+                                pairwiseMatrix[i*PAIRWISE_WIDTH+j] = id;
+                            }
                         }
                         else
-                            pairwiseMatrix[i][j] = 0;
+                        {
+                            bool hasCol = (hasRow ? j-1 < row.Size() : false);
+                            if (hasRow && hasCol)
+                                pairwiseMatrix[i*PAIRWISE_WIDTH+j] = row[j-1].GetFloat();
+                        }
                     }
-                    else
-                    {
-                        bool hasCol = (hasRow ? j-1 < row.Size() : false);
-                        if (hasRow && hasCol)
-                            pairwiseMatrix[i][j] = row[j-1].GetFloat();
-                        else
-                            pairwiseMatrix[i][j] = -1;
-                    }
-#ifdef PRINT_PAIRWISE2
-                    cout << pairwiseMatrix[i][j] << " ";
-#endif
                 }
-#ifdef PRINT_PAIRWISE2
-                 cout << endl;
-#endif
             }
         } // if
+        else
+            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_PAIRWISE << " in received json messages");
     }
     
     {
-//        rapidjson::Value dtwdistances;
-//
-//        if (retireve("dtwdistances", messages, dtwdistances))
-//        {
-//            rapidjson::Value arr = dtwdistances.GetArray();
-//        }
+        rapidjson::Value dtwdistances;
+
+        if (retireve(OM_JSON_DTW, messages, dtwdistances))
+        {
+            if (!dtwdistances.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_DTW << " is not an array");
+            else
+            {
+                rapidjson::Value arr = dtwdistances.GetArray();
+                
+                for (int i = 0; i < PAIRWISE_HEIGHT && arr.Size(); ++i)
+                {
+                    if (!arr[i].IsArray())
+                        SET_CHOP_WARN(msg << "JSON format error: array expected as element of " << OM_JSON_DTW);
+                    else
+                    {
+                        bool hasRow = (i < arr.Size());
+                        rapidjson::Value row;
+                        
+                        if (hasRow)
+                            row = arr[i].GetArray();
+                        
+                        for (int j = 0; j < PAIRWISE_WIDTH; ++j)
+                        {
+                            if (j == 0) // this is for ids
+                            {
+                                if (i < idOrder.size())
+                                {
+                                    int id = idOrder[i];
+                                    dtwMatrix[i*PAIRWISE_WIDTH+j] = id;
+                                }
+                            }
+                            else
+                            {
+                                bool hasCol = (hasRow ? j-1 < row.Size() : false);
+                                if (hasRow && hasCol)
+                                    dtwMatrix[i*PAIRWISE_WIDTH+j] = row[j-1].GetFloat();
+                            }
+                        }
+                    }
+                }
+                
+                if (arr.Size() == 0)
+                    SET_CHOP_WARN(msg << "Dtw array is empty");
+            }
+        }
+        else
+            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_DTW << " in received json messages");
     }
     
-    {
+    { //  retrieve clusters
         rapidjson::Value clusters;
         
         if (retireve(OM_JSON_CLUSTERCENTERS, messages, clusters))
         {
-            rapidjson::Value arr = clusters.GetArray();
-
-            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+            if (!clusters.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+            else
             {
-                rapidjson::Value coords = arr[i].GetArray();
-                clustersData.push_back(vector<float>({ coords[0].GetFloat(), coords[1].GetFloat(), 0}));
+                rapidjson::Value arr = clusters.GetArray();
+                
+                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+                {
+                    rapidjson::Value coords = arr[i].GetArray();
+                    clustersData.push_back(vector<float>({ coords[0].GetFloat(), coords[1].GetFloat(), 0}));
+                }
             }
         }
+        else
+            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_CLUSTERCENTERS << " in received json messages");
         
         rapidjson::Value spreads;
         if (retireve(OM_JSON_CLUSTERSPREADS, messages, spreads))
         {
-            rapidjson::Value arr = spreads.GetArray();
-            
-            assert(arr.Size() == clustersData.size());
-            
-            for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
-                clustersData[i][2] = arr[i].GetFloat();
+            if (!spreads.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+            else
+            {
+                rapidjson::Value arr = spreads.GetArray();
+                
+                if (arr.Size() != clustersData.size())
+                {
+                    SET_CHOP_WARN(msg << "Array length of cluster spreads (" << arr.Size()
+                                  << ") does not equal number of clusters (" << clustersData.size() << ").");
+                }
+                else
+                {
+                    for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
+                        clustersData[i][2] = arr[i].GetFloat();
+                }
+            }
         }
+        else
+            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_CLUSTERSPREADS << " in received json messages");
+        
+#ifdef PRINT_CLUSTERS
+        cout << "clusters: " << endl;
+        for (auto v:clustersData)
+            cout << "x " << v[0] << " y " << v[1] << " spread " << v[2] << endl;
+#endif
     }
     
-#ifdef PRINT_CLUSTERS
-    cout << "clusters: " << endl;
-    for (auto v:clustersData)
-        cout << "x " << v[0] << " y " << v[1] << " spread " << v[2] << endl;
-#endif
+    { // retrieving stage distances
+        rapidjson::Value stageDist;
+        if (retireve(OM_JSON_STAGEDIST, messages, stageDist))
+        {
+            if (!stageDist.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " is not an array");
+            else
+            {
+                int idx = 0;
+                const rapidjson::Value& arr = stageDist.GetArray();
+                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+                {
+                    int id = idOrder[idx++];
+                    stageDistances[id] = vector<float>();
+                    
+                    if (!arr[i].IsObject())
+                        SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " element is not a dictionary");
+                    else
+                    {
+                        if (arr[i].HasMember(OM_JSON_STAGEDIST_US))
+                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_US].GetFloat());
+                        else
+                            SET_CHOP_WARN(msg << "JSON format error: can't find key " << OM_JSON_STAGEDIST_US << " in stagedist object");
+                        if (arr[i].HasMember(OM_JSON_STAGEDIST_DS))
+                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_DS].GetFloat());
+                        else
+                            SET_CHOP_WARN(msg << "JSON format error: can't find key " << OM_JSON_STAGEDIST_DS << " in stagedist object");
+                        if (arr[i].HasMember(OM_JSON_STAGEDIST_SL))
+                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SL].GetFloat());
+                        else
+                            SET_CHOP_WARN(msg << "JSON format error: can't find key " << OM_JSON_STAGEDIST_SL << " in stagedist object");
+                        if (arr[i].HasMember(OM_JSON_STAGEDIST_SR))
+                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SR].GetFloat());
+                        else
+                            SET_CHOP_WARN(msg << "JSON format error: can't find key " << OM_JSON_STAGEDIST_SR << " in stagedist object");
+                    }
+                } // for i
+            }
+        } // if
+        else
+            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_STAGEDIST << " in received json messages");
+    }
+    
+    { // retrieveing hotspots
+        rapidjson::Value hotspots;
+        
+        if (retireve(OM_JSON_HOTSPOTS, messages, hotspots))
+        {
+            if (!hotspots.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_HOTSPOTS << " is not an array");
+            else
+            {
+                rapidjson::Value arr = hotspots.GetArray();
+                
+                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+                {
+                    rapidjson::Value coords = arr[i].GetArray();
+                    if (coords.Size() < 2)
+                    {
+                        SET_CHOP_WARN(msg << "Hotspots centers don't have enough data (at least "
+                                      "2 coordinates expected, but " << coords.Size() << " given");
+                    }
+                    else
+                    {
+                        hotspotsData.push_back(vector<float>({ coords[0].GetFloat(), coords[1].GetFloat()}));
+                        if (coords.Size() >= 3)
+                            hotspotsData.back().push_back(coords[2].GetFloat());
+                    }
+                }
+            }
+        }
+        else
+            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_HOTSPOTS << " in received json messages");
+    }
 }
 
 bool
@@ -695,7 +983,7 @@ OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
     
     outChoice_ = OutputMenuMap[outputChoice];
     
-    inputs->enablePar("Maxclusters", false);
+//    inputs->enablePar("Maxclusters", false);
     
     // update UI
     switch (outChoice_) {
@@ -706,11 +994,11 @@ OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
         case Pairwise:
             break;
             
-        case Dwt:
+        case Dtw:
             break;
             
         case Cluster:
-            inputs->enablePar("Maxclusters", true);
+//            inputs->enablePar("Maxclusters", true);
             break;
         default:
             break;

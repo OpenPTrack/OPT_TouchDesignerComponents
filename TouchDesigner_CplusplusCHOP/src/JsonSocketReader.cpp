@@ -103,14 +103,14 @@ void
 JsonSocketReader::setupSocket(int port)
 {
     //Create a UDP Socket.
-    struct sockaddr_in si_other, server;
+    struct sockaddr_in server;
     
 #ifdef WIN32
     DWORD timeout = 1000;
     if (WSAStartup(MAKEWORD(2, 2), &wsa_) != 0)
     {
         stringstream ss;
-        ss << "WSAStartup failed " << WSAGetLastError();
+        ss << "WSAStartup failed (" << WSAGetLastError() << "): " << strerror(WSAGetLastError());
         
 		throw runtime_error(ss.str());
     }
@@ -123,7 +123,7 @@ JsonSocketReader::setupSocket(int port)
     if ((socket_ = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
     {
         stringstream ss;
-        ss << "Could not create socket: %d" << WSAGetLastError();
+        ss << "Could not create socket (" << WSAGetLastError() << "): " << strerror(WSAGetLastError());
         
         throw runtime_error(ss.str());
     }
@@ -135,7 +135,7 @@ JsonSocketReader::setupSocket(int port)
     if (setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
     {
         stringstream ss;
-        ss << "Socket setup error: " << WSAGetLastError();
+        ss << "Socket setup error (" << WSAGetLastError() << "): " << strerror(WSAGetLastError());
         
         perror(ss.str().c_str());
         throw runtime_error(ss.str());
@@ -144,7 +144,7 @@ JsonSocketReader::setupSocket(int port)
     if (::bind(socket_, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR)
     {
         stringstream ss;
-        ss << "Socket bind failure: " << WSAGetLastError();
+        ss << "Socket bind failure (" << WSAGetLastError() << "): " << strerror(WSAGetLastError());
         
         perror(ss.str().c_str());
         throw runtime_error(ss.str());
@@ -192,7 +192,7 @@ JsonSocketReader::listenSocket()
                 {
                     lock_guard<mutex> lock(slavesMutex_);
                     for (auto slave:slaves_)
-                        slave->onNewJsonOnjectReceived(d);
+                        slave->onNewJsonObjectReceived(d);
                 }
             }
             else
@@ -202,6 +202,11 @@ JsonSocketReader::listenSocket()
                    << rapidjson::GetParseError_En(d.GetParseError());
                 
                 perror(ss.str().c_str());
+                {
+                    lock_guard<mutex> lock(slavesMutex_);
+                    for (auto slave:slaves_)
+                        slave->onSocketReaderError(ss.str());
+                }
             }
         }
 #ifdef WIN32
@@ -221,7 +226,24 @@ JsonSocketReader::listenSocket()
             {
                 lock_guard<mutex> lock(slavesMutex_);
                 for (auto slave:slaves_)
-                    slave->onSocketError(ss.str());
+                    slave->onSocketReaderError(ss.str());
+            }
+        }
+#ifdef WIN32
+        else if (recvLen == SOCKET_ERROR && errno == WSAEWOULDBLOCK)
+#else
+        else if (recvLen == SOCKET_ERROR && (errno == EWOULDBLOCK || errno == EAGAIN))
+#endif
+        {
+            stringstream ss;
+            ss << "No data in socket (" << errno << "): " << strerror(WSAGetLastError());
+            
+            perror(ss.str().c_str());
+            // deliver socket error to all slaves
+            {
+                lock_guard<mutex> lock(slavesMutex_);
+                for (auto slave:slaves_)
+                    slave->onSocketReaderError(ss.str());
             }
         }
     }

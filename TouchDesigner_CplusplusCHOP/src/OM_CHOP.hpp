@@ -38,8 +38,11 @@ public:
         Unknown,
         Derivatives,
         Pairwise,
-        Dwt,
-        Cluster
+        Dtw,
+        Cluster,
+        Hotspots,
+        Pca,
+        Stagedist
     } OutChoice;
     
     OM_CHOP(const OP_NodeInfo * info);
@@ -79,24 +82,22 @@ private:
     std::queue<rapidjson::Document> documentQueue_;
     
     // dictionary of collected messages
-    typedef std::map<int, std::vector<rapidjson::Document>> MessagesQueue;
+    typedef std::map<int, std::pair<double, std::vector<rapidjson::Document>>> MessagesQueue;
     std::mutex messagesMutex_;
-    std::map<int, std::vector<rapidjson::Document>> messages_;
+    MessagesQueue messages_;
     
     OutChoice outChoice_;
     
     const OP_NodeInfo *myNodeInfo;
-    int seq;
     
-    std::map<float, std::vector<float>> data;
-    
+    int seq_;
     uint64_t nAliveIds_;
-    std::vector<std::vector<float>> pairwiseMatrix_;
+    float *pairwiseMat_, *dtwMat_;
     
     void setupSocketReader();
     
-    void onNewJsonOnjectReceived(const rapidjson::Document&) override;
-    void onSocketError(const std::string&) override;
+    void onNewJsonObjectReceived(const rapidjson::Document&) override;
+    void onSocketReaderError(const std::string&) override;
     
     void processQueue();
     
@@ -105,13 +106,19 @@ private:
     // - derivatives
     // - dwt distances
     // - pairwise matrix
-    void processMessages(std::vector<rapidjson::Document>&,
+    // - clusters
+    // - stage distances
+    // - hotspots
+    // - dtw
+    void processMessages(std::vector<rapidjson::Document>& messages,
                          std::vector<int>& idOrder,
-                         std::map<int, std::pair<float,float>>&,
-                         std::map<int, std::pair<float,float>>&,
-                         std::map<int, std::vector<float>>&,
-                         std::vector<std::vector<float>>&,
-                         std::vector<std::vector<float>>&);
+                         std::map<int, std::pair<float,float>>& derivatives1,
+                         std::map<int, std::pair<float,float>>& derivatives2,
+                         float* pairwiseMatrix,
+                         std::vector<std::vector<float>>& clustersData,
+                         std::map<int, std::vector<float>>& stageDistances,
+                         std::vector<std::vector<float>>& hotspotsData,
+                         float* dtwMatrix);
     
     bool retireve(const std::string& key,
                   std::vector<rapidjson::Document>&,

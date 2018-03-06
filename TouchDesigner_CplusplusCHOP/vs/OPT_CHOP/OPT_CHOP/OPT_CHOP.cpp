@@ -45,7 +45,7 @@
     perror(msg.str().c_str()); \
 })
 
-#define SET_CHOP_ERROR(errexpr) (\
+#define SET_CHOP_WARN(errexpr) (\
 {\
     std::stringstream msg; \
     errexpr; \

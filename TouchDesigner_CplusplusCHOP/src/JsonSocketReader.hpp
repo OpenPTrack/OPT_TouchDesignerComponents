@@ -35,8 +35,8 @@ public:
     
     class ISlaveReceiver {
     public:
-        virtual void onNewJsonOnjectReceived(const rapidjson::Document&) = 0;
-        virtual void onSocketError(const std::string&) = 0;
+        virtual void onNewJsonObjectReceived(const rapidjson::Document&) = 0;
+        virtual void onSocketReaderError(const std::string&) = 0;
     };
     
     JsonSocketReader(int port);

@@ -9,5 +9,11 @@
 #ifndef debug_h
 #define debug_h
 
+//#define PRINT_MSG_QUEUE
+//#define PRINT_MESSAGES
+//#define PRINT_IDS
+//#define PRINT_DERIVATIVES
+//#define PRINT_PAIRWISE
+//#define PRINT_CLUSTERS
 
 #endif /* debug_h */
