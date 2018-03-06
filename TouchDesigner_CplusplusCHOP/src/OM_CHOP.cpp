@@ -90,7 +90,6 @@ printf("%s\n", msg.str().c_str());\
 std::stringstream msg; \
 errexpr; \
 warningMessage_ = msg.str(); \
-printf("%s\n", msg.str().c_str());\
 })
 
 //Required functions.
