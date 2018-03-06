@@ -43,10 +43,10 @@
 #define OPENMOVES_MSG_BUNDLE 2
 #define PAIRWISE_MAXDIM 20
 
-//#define PRINT_MESSAGES
+#define PRINT_MESSAGES
 //#define PRINT_IDS
 //#define PRINT_DERIVATIVES
-//#define PRINT_PAIRWISE
+#define PRINT_PAIRWISE
 //#define PRINT_CLUSTERS
 
 using namespace std;
@@ -189,6 +189,13 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
         std::map<int, std::pair<float,float>> derivatives2;
         std::map<int, std::vector<float>> dwtDistances;
         std::vector<std::vector<float>> clusters;
+        std::vector<std::vector<float>> pairwiseMatrix;
+        
+        for (int i = 0; i < PAIRWISE_MAXDIM; i++)
+        {
+            pairwiseMatrix.push_back(vector<float>(PAIRWISE_MAXDIM+1, -1));
+            pairwiseMatrix[i][0] = 0;
+        }
         
         if (!queueBusy_)
         {
@@ -212,7 +219,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                 processMessages(msgs, idOrder,
                                 derivatives1, derivatives2,
                                 dwtDistances,
-                                pairwiseMatrix_,
+                                pairwiseMatrix,//pairwiseMatrix_,
                                 clusters);
                 
                 {
@@ -249,17 +256,26 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     
                     long sampleIdx = it-idOrder.begin();
                     
-                    output->channels[0][sampleIdx] = id;
-                    output->channels[1][sampleIdx] = pair.second.first;
-                    output->channels[2][sampleIdx] = pair.second.first;
+                    output->channels[3][sampleIdx] = pair.second.first;
+                    output->channels[4][sampleIdx] = pair.second.first;
                 }
             }
                 break;
             case Pairwise:
             {
+#ifdef PRINT_PAIRWISE
+                cout << "pairwise corner: " << endl;
+                for (int i = 0; i < PAIRWISE_MAXDIM/5; ++i)
+                {
+                    for (int j = 0; j < PAIRWISE_MAXDIM/5; ++j)
+                        cout << pairwiseMatrix[i][j] << " ";
+                    cout << endl;
+                }
+#endif
+                
                 for (int chanIdx = 0; chanIdx < output->numChannels; chanIdx++)
                     for (int sampleIdx = 0; sampleIdx < output->numSamples; sampleIdx++)
-                        output->channels[chanIdx][sampleIdx] = pairwiseMatrix_[chanIdx][sampleIdx];
+                        output->channels[chanIdx][sampleIdx] = pairwiseMatrix[chanIdx][sampleIdx];
             }
                 break;
             case Dwt:
@@ -534,6 +550,9 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
 #endif
     
     {
+#ifdef PRINT_PAIRWISE2
+        cout << "pairwise mat: " << endl;
+#endif
         rapidjson::Value pairwise;
         if (retireve("pairwise", messages, pairwise))
         {
@@ -567,7 +586,13 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
                         else
                             pairwiseMatrix[i][j] = -1;
                     }
+#ifdef PRINT_PAIRWISE2
+                    cout << pairwiseMatrix[i][j] << " ";
+#endif
                 }
+#ifdef PRINT_PAIRWISE2
+                 cout << endl;
+#endif
             }
         } // if
     }
