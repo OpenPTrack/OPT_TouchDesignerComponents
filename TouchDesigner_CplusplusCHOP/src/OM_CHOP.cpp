@@ -1216,8 +1216,8 @@ OM_CHOP::processDtw(vector<rapidjson::Document>& messages,
                 }
             }
             
-            if (arr.Size() == 0)
-                SET_CHOP_WARN(msg << "Dtw array is empty")
+//            if (arr.Size() == 0)
+//                SET_CHOP_WARN(msg << "Dtw array is empty")
         }
     }
     else
