@@ -699,14 +699,19 @@ OM_CHOP::processMessages(vector<rapidjson::Document>& messages,
                          map<string, vector<float>>& templates)
 {
     processIdOrder(messages, idOrder);
-    processDerivatives(messages, idOrder, derivatives1, derivatives2, speeds, accelerations);
-    processPairwise(messages, idOrder, pairwiseMatrix);
-    processClusters(messages, clustersData);
-    processDtw(messages, idOrder, dtwMatrix);
-    processStageDistances(messages, idOrder, stageDistances);
-    processHotspots(messages, hotspotsData);
-    processGroupTarget(messages, groupTarget);
-    processTemplates(messages, idOrder, templates);
+    if (idOrder.size() == 0)
+        SET_CHOP_ERROR(msg << "idorder/aliveIDs array is empty")
+    else
+    {
+        processDerivatives(messages, idOrder, derivatives1, derivatives2, speeds, accelerations);
+        processPairwise(messages, idOrder, pairwiseMatrix);
+        processClusters(messages, clustersData);
+        processDtw(messages, idOrder, dtwMatrix);
+        processStageDistances(messages, idOrder, stageDistances);
+        processHotspots(messages, hotspotsData);
+        processGroupTarget(messages, groupTarget);
+        processTemplates(messages, idOrder, templates);
+    }
 }
 
 bool
@@ -843,14 +848,18 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
             const rapidjson::Value& arr = firstDirs.GetArray();
             for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
             {
-                int id = idOrder[i];
-                derivatives1[id] = pair<float, float>(0,0);
-                
-                // if value is string then it's "Null" -> skip
-                if (!arr[i].GetArray()[0].IsString())
+                if (i >= idOrder.size())
+                    SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
                 {
-                    derivatives1[id].first = arr[i].GetArray()[0].GetFloat();
-                    derivatives1[id].second = arr[i].GetArray()[1].GetFloat();
+                    int id = idOrder[i];
+                    derivatives1[id] = pair<float, float>(0,0);
+                    
+                    // if value is string then it's "Null" -> skip
+                    if (!arr[i].GetArray()[0].IsString())
+                    {
+                        derivatives1[id].first = arr[i].GetArray()[0].GetFloat();
+                        derivatives1[id].second = arr[i].GetArray()[1].GetFloat();
+                    }
                 }
             } // for i
         }
@@ -870,14 +879,18 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
             const rapidjson::Value& arr = secondDirs.GetArray();
             for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
             {
-                int id = idOrder[i];
-                derivatives2[id] = pair<float, float>(0,0);
-                
-                // if value is string then it's "Null" -> skip
-                if (!arr[i].GetArray()[0].IsString())
+                if (i >= idOrder.size())
+                    SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
                 {
-                    derivatives2[id].first = arr[i].GetArray()[0].GetFloat();
-                    derivatives2[id].second = arr[i].GetArray()[1].GetFloat();
+                    int id = idOrder[i];
+                    derivatives2[id] = pair<float, float>(0,0);
+                    
+                    // if value is string then it's "Null" -> skip
+                    if (!arr[i].GetArray()[0].IsString())
+                    {
+                        derivatives2[id].first = arr[i].GetArray()[0].GetFloat();
+                        derivatives2[id].second = arr[i].GetArray()[1].GetFloat();
+                    }
                 }
             } // for i
         }
@@ -896,8 +909,12 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
             const rapidjson::Value& arr = speeds.GetArray();
             for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
             {
-                int id = idOrder[i];
-                speed[id] = arr[i].GetFloat();
+                if (i >= idOrder.size())
+                    SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
+                {
+                    int id = idOrder[i];
+                    speed[id] = arr[i].GetFloat();
+                }
             }
         }
     }
@@ -913,8 +930,12 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
             const rapidjson::Value& arr = accels.GetArray();
             for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
             {
-                int id = idOrder[i];
-                acceleration[id] = arr[i].GetFloat();
+                if (i >= idOrder.size())
+                    SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
+                {
+                    int id = idOrder[i];
+                    acceleration[id] = arr[i].GetFloat();
+                }
             }
         }
     }
@@ -972,6 +993,8 @@ OM_CHOP::processPairwise(vector<rapidjson::Document>& messages,
                             int id = idOrder[i];
                             pairwiseMatrix[i*PAIRWISE_WIDTH+j] = id;
                         }
+                        else
+                            SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
                     }
                     else
                     {
@@ -1057,37 +1080,41 @@ OM_CHOP::processStageDistances(vector<rapidjson::Document>& messages,
             SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " is not an array")
         else
         {
-            int idx = 0;
             const rapidjson::Value& arr = stageDist.GetArray();
             for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
             {
-                int id = idOrder[idx++];
-                stageDistances[id] = vector<float>();
-                
-                if (!arr[i].IsObject())
-                    SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " element is not a dictionary")
+                if (i >= idOrder.size())
+                    SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
                 else
                 {
-                    if (arr[i].HasMember(OM_JSON_STAGEDIST_US))
-                        stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_US].GetFloat());
+                    int id = idOrder[i];
+                    stageDistances[id] = vector<float>();
+                
+                    if (!arr[i].IsObject())
+                        SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " element is not a dictionary")
                     else
-                        SET_CHOP_WARN(msg << "JSON format error: can't find key "
-                                      << OM_JSON_STAGEDIST_US << " in stagedist object")
-                    if (arr[i].HasMember(OM_JSON_STAGEDIST_DS))
-                        stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_DS].GetFloat());
-                    else
-                        SET_CHOP_WARN(msg << "JSON format error: can't find key "
-                                      << OM_JSON_STAGEDIST_DS << " in stagedist object")
-                    if (arr[i].HasMember(OM_JSON_STAGEDIST_SL))
-                        stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SL].GetFloat());
-                    else
-                        SET_CHOP_WARN(msg << "JSON format error: can't find key "
-                                      << OM_JSON_STAGEDIST_SL << " in stagedist object")
-                    if (arr[i].HasMember(OM_JSON_STAGEDIST_SR))
-                        stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SR].GetFloat());
-                    else
-                        SET_CHOP_WARN(msg << "JSON format error: can't find key "
-                                      << OM_JSON_STAGEDIST_SR << " in stagedist object")
+                    {
+                        if (arr[i].HasMember(OM_JSON_STAGEDIST_US))
+                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_US].GetFloat());
+                        else
+                            SET_CHOP_WARN(msg << "JSON format error: can't find key "
+                                          << OM_JSON_STAGEDIST_US << " in stagedist object")
+                        if (arr[i].HasMember(OM_JSON_STAGEDIST_DS))
+                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_DS].GetFloat());
+                        else
+                            SET_CHOP_WARN(msg << "JSON format error: can't find key "
+                                          << OM_JSON_STAGEDIST_DS << " in stagedist object")
+                        if (arr[i].HasMember(OM_JSON_STAGEDIST_SL))
+                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SL].GetFloat());
+                        else
+                            SET_CHOP_WARN(msg << "JSON format error: can't find key "
+                                          << OM_JSON_STAGEDIST_SL << " in stagedist object")
+                        if (arr[i].HasMember(OM_JSON_STAGEDIST_SR))
+                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SR].GetFloat());
+                        else
+                            SET_CHOP_WARN(msg << "JSON format error: can't find key "
+                                          << OM_JSON_STAGEDIST_SR << " in stagedist object")
+                    }
                 }
             } // for i
         }
@@ -1174,6 +1201,8 @@ OM_CHOP::processDtw(vector<rapidjson::Document>& messages,
                                 int id = idOrder[i];
                                 dtwMatrix[i*PAIRWISE_WIDTH+j] = id;
                             }
+                            else
+                                SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
                         }
                         else
                         {
