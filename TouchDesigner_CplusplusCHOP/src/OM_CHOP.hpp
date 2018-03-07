@@ -119,13 +119,29 @@ private:
                          std::map<int, std::vector<float>>& stageDistances,
                          std::vector<std::vector<float>>& hotspotsData,
                          float* dtwMatrix);
+    void processIdOrder(std::vector<rapidjson::Document>& messages,
+                        std::vector<int>& idOrder);
+    void processDerivatives(std::vector<rapidjson::Document>& messages,
+                            std::vector<int>& idOrder,
+                            std::map<int, std::pair<float,float>>& derivatives1,
+                            std::map<int, std::pair<float,float>>& derivatives2);
+    void processPairwise(std::vector<rapidjson::Document>& messages,
+                         std::vector<int>& idOrder,
+                         float* pairwiseMatrix);
+    void processClusters(std::vector<rapidjson::Document>& messages,
+                         std::vector<std::vector<float>>& clustersData);
+    void processStageDistances(std::vector<rapidjson::Document>& messages,
+                               std::vector<int>& idOrder,
+                               std::map<int, std::vector<float>>& stageDistances);
+    void processHotspots(std::vector<rapidjson::Document>& messages,
+                         std::vector<std::vector<float>>& hotspotsData);
+    void processDtw(std::vector<rapidjson::Document>& messages,
+                    std::vector<int>& idOrder,
+                    float* dtwMatrix);
     
     bool retireve(const std::string& key,
                   std::vector<rapidjson::Document>&,
                   rapidjson::Value&);
-    
-    bool hasResidualData();
-    void processResidualData(const CHOP_Output*, OP_Inputs*);
     
     void checkInputs(const CHOP_Output *, OP_Inputs *inputs, void *);
 };

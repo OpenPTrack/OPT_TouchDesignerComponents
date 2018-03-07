@@ -241,11 +241,6 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
     checkInputs(output, inputs, reserved);
     processQueue();
     
-    if (hasResidualData())
-    {
-        processResidualData(output, inputs);
-    }
-    else
     {
         string bundleStr;
         vector<int> idOrder;
@@ -466,9 +461,7 @@ void OM_CHOP::setupParameters(OP_ParameterManager* manager)
         OP_ParAppendResult res = manager->appendMenu(output, NPAR_OUTPUT, (const char**)menuNames,
                                                      (const char**)labels);
         assert(res == OP_ParAppendResult::Success);
-    }
     
-    {
         //Create new parameter
         OP_NumericParameter MaxTracked;
         
@@ -589,341 +582,13 @@ OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
                          std::vector<std::vector<float>>& hotspotsData,
                          float* dtwMatrix)
 {
-    { // retrieving id order
-        rapidjson::Value idorder;
-        
-        if (retireve(OM_JSON_IDORDER, messages, idorder))
-        {
-            if (!idorder.IsArray())
-                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_IDORDER << " is not an array." );
-            else
-            {
-                const rapidjson::Value& arr = idorder.GetArray();
-                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
-                    idOrder.push_back(arr[i].GetInt());
-            }
-        }
-        else
-            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_IDORDER << " in received json messages");
-        
-        // cleanupt idorder by alive ids
-        rapidjson::Value aliveids;
-        
-        if (retireve(OM_JSON_ALIVEIDS, messages, aliveids))
-        {
-            set<int> aliveIds;
-            const rapidjson::Value& arr = aliveids.GetArray();
-            
-            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
-                aliveIds.insert(arr[i].GetInt());
-            
-            nAliveIds_ = aliveIds.size();
-            
-            int idx = 0;
-            while (idOrder.size() != aliveIds.size() && idx < idOrder.size())
-            {
-                int searchId = *(idOrder.begin()+idx);
-                
-                if (aliveIds.find(searchId) == aliveIds.end()) // id is not in aliveIds -> delete it from idOrder
-                    idOrder.erase(idOrder.begin()+idx);
-                else
-                    idx++;
-            }
-        }
-        else
-            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_ALIVEIDS << " in received json messages");
-        
-#ifdef PRINT_IDS
-        cout << "filtered ids: ";
-        for (auto id:idOrder)
-            cout << id << " ";
-        cout << endl;
-#endif
-    }
-    
-    { // retrieving derivatives
-        rapidjson::Value firstDirs;
-        if (retireve(OM_JSON_FIRSTDERS, messages, firstDirs))
-        {
-            if (!firstDirs.IsArray())
-                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
-            else
-            {
-                int idx = 0;
-                const rapidjson::Value& arr = firstDirs.GetArray();
-                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
-                {
-                    int id = idOrder[idx++];
-                    derivatives1[id] = pair<float, float>(0,0);
-                    
-                    // if value is string then it's "Null" -> skip
-                    if (!arr[i].GetArray()[0].IsString())
-                    {
-                        derivatives1[id].first = arr[i].GetArray()[0].GetFloat();
-                        derivatives1[id].second = arr[i].GetArray()[1].GetFloat();
-                    }
-                } // for i
-            }
-        } // if
-        else
-            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_FIRSTDERS << " in received json messages");
-
-        rapidjson::Value secondDirs;
-        if (retireve(OM_JSON_SECONDDERS, messages, secondDirs))
-        {
-            if (!firstDirs.IsArray())
-                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
-            else
-            {
-                int idx = 0;
-                const rapidjson::Value& arr = secondDirs.GetArray();
-                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
-                {
-                    int id = idOrder[idx++];
-                    derivatives2[id] = pair<float, float>(0,0);
-                    
-                    // if value is string then it's "Null" -> skip
-                    if (!arr[i].GetArray()[0].IsString())
-                    {
-                        derivatives2[id].first = arr[i].GetArray()[0].GetFloat();
-                        derivatives2[id].second = arr[i].GetArray()[1].GetFloat();
-                    }
-                } // for i
-            }
-        } // if
-        else
-            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_SECONDDERS << " in received json messages");
-    }
-    
-#ifdef PRINT_DERIVATIVES
-    cout << "derivatives1: " << endl;
-    for (auto v:derivatives1)
-        cout << "id " << v.first << " dx " << v.second.first << " dy " << v.second.second << endl;
-    
-    cout << "derivatives2: " << endl;
-    for (auto v:derivatives2)
-        cout << "id " << v.first << " dx " << v.second.first << " dy " << v.second.second << endl;
-#endif
-    
-    {
-        rapidjson::Value pairwise;
-        if (retireve(OM_JSON_PAIRWISE, messages, pairwise))
-        {
-            if (!pairwise.IsArray())
-                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PAIRWISE << " is not an array");
-            else
-            {
-                rapidjson::Value arr = pairwise.GetArray();
-                
-                for (int i = 0; i < PAIRWISE_HEIGHT; ++i)
-                {
-                    bool hasRow = (i < arr.Size());
-                    rapidjson::Value row;
-                    
-                    if (hasRow)
-                        row = arr[i].GetArray();
-                    
-                    for (int j = 0; j < PAIRWISE_WIDTH; ++j)
-                    {
-                        if (j == 0) // this is for ids
-                        {
-                            if (i < idOrder.size())
-                            {
-                                int id = idOrder[i];
-                                pairwiseMatrix[i*PAIRWISE_WIDTH+j] = id;
-                            }
-                        }
-                        else
-                        {
-                            bool hasCol = (hasRow ? j-1 < row.Size() : false);
-                            if (hasRow && hasCol)
-                                pairwiseMatrix[i*PAIRWISE_WIDTH+j] = row[j-1].GetFloat();
-                        }
-                    }
-                }
-            }
-        } // if
-        else
-            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_PAIRWISE << " in received json messages");
-    }
-    
-    {
-        rapidjson::Value dtwdistances;
-
-        if (retireve(OM_JSON_DTW, messages, dtwdistances))
-        {
-            if (!dtwdistances.IsArray())
-                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_DTW << " is not an array");
-            else
-            {
-                rapidjson::Value arr = dtwdistances.GetArray();
-                
-                for (int i = 0; i < PAIRWISE_HEIGHT && arr.Size(); ++i)
-                {
-                    if (!arr[i].IsArray())
-                        SET_CHOP_WARN(msg << "JSON format error: array expected as element of " << OM_JSON_DTW);
-                    else
-                    {
-                        bool hasRow = (i < arr.Size());
-                        rapidjson::Value row;
-                        
-                        if (hasRow)
-                            row = arr[i].GetArray();
-                        
-                        for (int j = 0; j < PAIRWISE_WIDTH; ++j)
-                        {
-                            if (j == 0) // this is for ids
-                            {
-                                if (i < idOrder.size())
-                                {
-                                    int id = idOrder[i];
-                                    dtwMatrix[i*PAIRWISE_WIDTH+j] = id;
-                                }
-                            }
-                            else
-                            {
-                                bool hasCol = (hasRow ? j-1 < row.Size() : false);
-                                if (hasRow && hasCol)
-                                    dtwMatrix[i*PAIRWISE_WIDTH+j] = row[j-1].GetFloat();
-                            }
-                        }
-                    }
-                }
-                
-                if (arr.Size() == 0)
-                    SET_CHOP_WARN(msg << "Dtw array is empty");
-            }
-        }
-        else
-            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_DTW << " in received json messages");
-    }
-    
-    { //  retrieve clusters
-        rapidjson::Value clusters;
-        
-        if (retireve(OM_JSON_CLUSTERCENTERS, messages, clusters))
-        {
-            if (!clusters.IsArray())
-                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
-            else
-            {
-                rapidjson::Value arr = clusters.GetArray();
-                
-                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
-                {
-                    rapidjson::Value coords = arr[i].GetArray();
-                    clustersData.push_back(vector<float>({ coords[0].GetFloat(), coords[1].GetFloat(), 0}));
-                }
-            }
-        }
-        else
-            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_CLUSTERCENTERS << " in received json messages");
-        
-        rapidjson::Value spreads;
-        if (retireve(OM_JSON_CLUSTERSPREADS, messages, spreads))
-        {
-            if (!spreads.IsArray())
-                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
-            else
-            {
-                rapidjson::Value arr = spreads.GetArray();
-                
-                if (arr.Size() != clustersData.size())
-                {
-                    SET_CHOP_WARN(msg << "Array length of cluster spreads (" << arr.Size()
-                                  << ") does not equal number of clusters (" << clustersData.size() << ").");
-                }
-                else
-                {
-                    for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
-                        clustersData[i][2] = arr[i].GetFloat();
-                }
-            }
-        }
-        else
-            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_CLUSTERSPREADS << " in received json messages");
-        
-#ifdef PRINT_CLUSTERS
-        cout << "clusters: " << endl;
-        for (auto v:clustersData)
-            cout << "x " << v[0] << " y " << v[1] << " spread " << v[2] << endl;
-#endif
-    }
-    
-    { // retrieving stage distances
-        rapidjson::Value stageDist;
-        if (retireve(OM_JSON_STAGEDIST, messages, stageDist))
-        {
-            if (!stageDist.IsArray())
-                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " is not an array");
-            else
-            {
-                int idx = 0;
-                const rapidjson::Value& arr = stageDist.GetArray();
-                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
-                {
-                    int id = idOrder[idx++];
-                    stageDistances[id] = vector<float>();
-                    
-                    if (!arr[i].IsObject())
-                        SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " element is not a dictionary");
-                    else
-                    {
-                        if (arr[i].HasMember(OM_JSON_STAGEDIST_US))
-                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_US].GetFloat());
-                        else
-                            SET_CHOP_WARN(msg << "JSON format error: can't find key " << OM_JSON_STAGEDIST_US << " in stagedist object");
-                        if (arr[i].HasMember(OM_JSON_STAGEDIST_DS))
-                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_DS].GetFloat());
-                        else
-                            SET_CHOP_WARN(msg << "JSON format error: can't find key " << OM_JSON_STAGEDIST_DS << " in stagedist object");
-                        if (arr[i].HasMember(OM_JSON_STAGEDIST_SL))
-                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SL].GetFloat());
-                        else
-                            SET_CHOP_WARN(msg << "JSON format error: can't find key " << OM_JSON_STAGEDIST_SL << " in stagedist object");
-                        if (arr[i].HasMember(OM_JSON_STAGEDIST_SR))
-                            stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SR].GetFloat());
-                        else
-                            SET_CHOP_WARN(msg << "JSON format error: can't find key " << OM_JSON_STAGEDIST_SR << " in stagedist object");
-                    }
-                } // for i
-            }
-        } // if
-        else
-            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_STAGEDIST << " in received json messages");
-    }
-    
-    { // retrieveing hotspots
-        rapidjson::Value hotspots;
-        
-        if (retireve(OM_JSON_HOTSPOTS, messages, hotspots))
-        {
-            if (!hotspots.IsArray())
-                SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_HOTSPOTS << " is not an array");
-            else
-            {
-                rapidjson::Value arr = hotspots.GetArray();
-                
-                for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
-                {
-                    rapidjson::Value coords = arr[i].GetArray();
-                    if (coords.Size() < 2)
-                    {
-                        SET_CHOP_WARN(msg << "Hotspots centers don't have enough data (at least "
-                                      "2 coordinates expected, but " << coords.Size() << " given");
-                    }
-                    else
-                    {
-                        hotspotsData.push_back(vector<float>({ coords[0].GetFloat(), coords[1].GetFloat()}));
-                        if (coords.Size() >= 3)
-                            hotspotsData.back().push_back(coords[2].GetFloat());
-                    }
-                }
-            }
-        }
-        else
-            SET_CHOP_WARN(msg << "JSON format error: couldn't find field " << OM_JSON_HOTSPOTS << " in received json messages");
-    }
+    processIdOrder(messages, idOrder);
+    processDerivatives(messages, idOrder, derivatives1, derivatives2);
+    processPairwise(messages, idOrder, pairwiseMatrix);
+    processClusters(messages, clustersData);
+    processDtw(messages, idOrder, dtwMatrix);
+    processStageDistances(messages, idOrder, stageDistances);
+    processHotspots(messages, hotspotsData);
 }
 
 bool
@@ -955,31 +620,10 @@ OM_CHOP::retireve(const std::string& key,
     return false;
 }
 
-bool
-OM_CHOP::hasResidualData()
-{
-//    if (outChoice_ == Pairwise && pairwiseMatrix_.size())
-//        return true;
-    return false;
-}
-
-void
-OM_CHOP::processResidualData(const CHOP_Output* output, OP_Inputs* inputs)
-{
-//    assert(output->numChannels == pairwiseMatrix_.size());
-//
-//    for (int chanIdx = 0; chanIdx < output->numChannels; chanIdx++)
-//        for (int sampleIdx = 0; sampleIdx < output->numSamples; sampleIdx++)
-//            output->channels[chanIdx][sampleIdx] = pairwiseMatrix_[chanIdx][sampleIdx];
-//
-//    pairwiseMatrix_.clear();
-}
-
 void
 OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
 {
     std::string outputChoice(inputs->getParString(PAR_OUTPUT));
-    
     outChoice_ = OutputMenuMap[outputChoice];
     
 //    inputs->enablePar("Maxclusters", false);
@@ -1004,4 +648,378 @@ OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
     }
 }
 
+void
+OM_CHOP::processIdOrder(std::vector<rapidjson::Document>& messages,
+                    std::vector<int>& idOrder)
+{ // retrieving id order
+    rapidjson::Value idorder;
+    
+    if (retireve(OM_JSON_IDORDER, messages, idorder))
+    {
+        if (!idorder.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_IDORDER << " is not an array." );
+        else
+        {
+            const rapidjson::Value& arr = idorder.GetArray();
+            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+                idOrder.push_back(arr[i].GetInt());
+        }
+    }
+    else
+        SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
+                      << OM_JSON_IDORDER << " in received json messages");
+    
+    // cleanupt idorder by alive ids
+    rapidjson::Value aliveids;
+    
+    if (retireve(OM_JSON_ALIVEIDS, messages, aliveids))
+    {
+        set<int> aliveIds;
+        const rapidjson::Value& arr = aliveids.GetArray();
+        
+        for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+            aliveIds.insert(arr[i].GetInt());
+        
+        nAliveIds_ = aliveIds.size();
+        
+        int idx = 0;
+        while (idOrder.size() != aliveIds.size() && idx < idOrder.size())
+        {
+            int searchId = *(idOrder.begin()+idx);
+            
+            if (aliveIds.find(searchId) == aliveIds.end()) // id is not in aliveIds -> delete it from idOrder
+                idOrder.erase(idOrder.begin()+idx);
+            else
+                idx++;
+        }
+    }
+    else
+        SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
+                      << OM_JSON_ALIVEIDS << " in received json messages");
+    
+#ifdef PRINT_IDS
+    cout << "filtered ids: ";
+    for (auto id:idOrder)
+        cout << id << " ";
+    cout << endl;
+#endif
+}
 
+void
+OM_CHOP::processDerivatives(std::vector<rapidjson::Document>& messages,
+                            std::vector<int>& idOrder,
+                            std::map<int, std::pair<float,float>>& derivatives1,
+                            std::map<int, std::pair<float,float>>& derivatives2)
+{ // retrieving derivatives
+    rapidjson::Value firstDirs;
+    if (retireve(OM_JSON_FIRSTDERS, messages, firstDirs))
+    {
+        if (!firstDirs.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+        else
+        {
+            int idx = 0;
+            const rapidjson::Value& arr = firstDirs.GetArray();
+            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+            {
+                int id = idOrder[idx++];
+                derivatives1[id] = pair<float, float>(0,0);
+                
+                // if value is string then it's "Null" -> skip
+                if (!arr[i].GetArray()[0].IsString())
+                {
+                    derivatives1[id].first = arr[i].GetArray()[0].GetFloat();
+                    derivatives1[id].second = arr[i].GetArray()[1].GetFloat();
+                }
+            } // for i
+        }
+    } // if
+    else
+        SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
+                      << OM_JSON_FIRSTDERS << " in received json messages");
+    
+    rapidjson::Value secondDirs;
+    if (retireve(OM_JSON_SECONDDERS, messages, secondDirs))
+    {
+        if (!firstDirs.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+        else
+        {
+            int idx = 0;
+            const rapidjson::Value& arr = secondDirs.GetArray();
+            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+            {
+                int id = idOrder[idx++];
+                derivatives2[id] = pair<float, float>(0,0);
+                
+                // if value is string then it's "Null" -> skip
+                if (!arr[i].GetArray()[0].IsString())
+                {
+                    derivatives2[id].first = arr[i].GetArray()[0].GetFloat();
+                    derivatives2[id].second = arr[i].GetArray()[1].GetFloat();
+                }
+            } // for i
+        }
+    } // if
+    else
+        SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
+                      << OM_JSON_SECONDDERS << " in received json messages");
+    
+#ifdef PRINT_DERIVATIVES
+    cout << "derivatives1: " << endl;
+    for (auto v:derivatives1)
+        cout << "id " << v.first << " dx " << v.second.first << " dy " << v.second.second << endl;
+    
+    cout << "derivatives2: " << endl;
+    for (auto v:derivatives2)
+        cout << "id " << v.first << " dx " << v.second.first << " dy " << v.second.second << endl;
+#endif
+}
+
+void
+OM_CHOP::processPairwise(std::vector<rapidjson::Document>& messages,
+                         std::vector<int>& idOrder,
+                         float* pairwiseMatrix)
+{
+    rapidjson::Value pairwise;
+    if (retireve(OM_JSON_PAIRWISE, messages, pairwise))
+    {
+        if (!pairwise.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PAIRWISE << " is not an array");
+        else
+        {
+            rapidjson::Value arr = pairwise.GetArray();
+            
+            for (int i = 0; i < PAIRWISE_HEIGHT; ++i)
+            {
+                bool hasRow = (i < arr.Size());
+                rapidjson::Value row;
+                
+                if (hasRow)
+                    row = arr[i].GetArray();
+                
+                for (int j = 0; j < PAIRWISE_WIDTH; ++j)
+                {
+                    if (j == 0) // this is for ids
+                    {
+                        if (i < idOrder.size())
+                        {
+                            int id = idOrder[i];
+                            pairwiseMatrix[i*PAIRWISE_WIDTH+j] = id;
+                        }
+                    }
+                    else
+                    {
+                        bool hasCol = (hasRow ? j-1 < row.Size() : false);
+                        if (hasRow && hasCol)
+                            pairwiseMatrix[i*PAIRWISE_WIDTH+j] = row[j-1].GetFloat();
+                    }
+                }
+            }
+        }
+    } // if
+    else
+        SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
+                      << OM_JSON_PAIRWISE << " in received json messages");
+}
+
+void
+OM_CHOP::processClusters(std::vector<rapidjson::Document>& messages,
+                         std::vector<std::vector<float>>& clustersData)
+{ //  retrieve clusters
+    rapidjson::Value clusters;
+    
+    if (retireve(OM_JSON_CLUSTERCENTERS, messages, clusters))
+    {
+        if (!clusters.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+        else
+        {
+            rapidjson::Value arr = clusters.GetArray();
+            
+            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+            {
+                rapidjson::Value coords = arr[i].GetArray();
+                clustersData.push_back(vector<float>({ coords[0].GetFloat(), coords[1].GetFloat(), 0}));
+            }
+        }
+    }
+    else
+        SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
+                      << OM_JSON_CLUSTERCENTERS << " in received json messages");
+    
+    rapidjson::Value spreads;
+    if (retireve(OM_JSON_CLUSTERSPREADS, messages, spreads))
+    {
+        if (!spreads.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+        else
+        {
+            rapidjson::Value arr = spreads.GetArray();
+            
+            if (arr.Size() != clustersData.size())
+            {
+                SET_CHOP_WARN(msg << "Array length of cluster spreads (" << arr.Size()
+                              << ") does not equal number of clusters (" << clustersData.size() << ").");
+            }
+            else
+            {
+                for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
+                    clustersData[i][2] = arr[i].GetFloat();
+            }
+        }
+    }
+    else
+        SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
+                      << OM_JSON_CLUSTERSPREADS << " in received json messages");
+    
+#ifdef PRINT_CLUSTERS
+    cout << "clusters: " << endl;
+    for (auto v:clustersData)
+        cout << "x " << v[0] << " y " << v[1] << " spread " << v[2] << endl;
+#endif
+}
+
+void
+OM_CHOP::processStageDistances(std::vector<rapidjson::Document>& messages,
+                               std::vector<int>& idOrder,
+                               std::map<int, std::vector<float>>& stageDistances)
+{ // retrieving stage distances
+    rapidjson::Value stageDist;
+    if (retireve(OM_JSON_STAGEDIST, messages, stageDist))
+    {
+        if (!stageDist.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " is not an array");
+        else
+        {
+            int idx = 0;
+            const rapidjson::Value& arr = stageDist.GetArray();
+            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+            {
+                int id = idOrder[idx++];
+                stageDistances[id] = vector<float>();
+                
+                if (!arr[i].IsObject())
+                    SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " element is not a dictionary");
+                else
+                {
+                    if (arr[i].HasMember(OM_JSON_STAGEDIST_US))
+                        stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_US].GetFloat());
+                    else
+                        SET_CHOP_WARN(msg << "JSON format error: can't find key "
+                                      << OM_JSON_STAGEDIST_US << " in stagedist object");
+                    if (arr[i].HasMember(OM_JSON_STAGEDIST_DS))
+                        stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_DS].GetFloat());
+                    else
+                        SET_CHOP_WARN(msg << "JSON format error: can't find key "
+                                      << OM_JSON_STAGEDIST_DS << " in stagedist object");
+                    if (arr[i].HasMember(OM_JSON_STAGEDIST_SL))
+                        stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SL].GetFloat());
+                    else
+                        SET_CHOP_WARN(msg << "JSON format error: can't find key "
+                                      << OM_JSON_STAGEDIST_SL << " in stagedist object");
+                    if (arr[i].HasMember(OM_JSON_STAGEDIST_SR))
+                        stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SR].GetFloat());
+                    else
+                        SET_CHOP_WARN(msg << "JSON format error: can't find key "
+                                      << OM_JSON_STAGEDIST_SR << " in stagedist object");
+                }
+            } // for i
+        }
+    } // if
+    else
+        SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
+                      << OM_JSON_STAGEDIST << " in received json messages");
+}
+
+void
+OM_CHOP::processHotspots(std::vector<rapidjson::Document>& messages,
+                     std::vector<std::vector<float>>& hotspotsData)
+{ // retrieveing hotspots
+    rapidjson::Value hotspots;
+    
+    if (retireve(OM_JSON_HOTSPOTS, messages, hotspots))
+    {
+        if (!hotspots.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_HOTSPOTS << " is not an array");
+        else
+        {
+            rapidjson::Value arr = hotspots.GetArray();
+            
+            for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
+            {
+                rapidjson::Value coords = arr[i].GetArray();
+                if (coords.Size() < 2)
+                {
+                    SET_CHOP_WARN(msg << "Hotspots centers don't have enough data (at least "
+                                  "2 coordinates expected, but " << coords.Size() << " given");
+                }
+                else
+                {
+                    hotspotsData.push_back(vector<float>({ coords[0].GetFloat(), coords[1].GetFloat()}));
+                    if (coords.Size() >= 3)
+                        hotspotsData.back().push_back(coords[2].GetFloat());
+                }
+            }
+        }
+    }
+    else
+        SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
+                      << OM_JSON_HOTSPOTS << " in received json messages");
+}
+
+void
+OM_CHOP::processDtw(std::vector<rapidjson::Document>& messages,
+                    std::vector<int>& idOrder,
+                    float* dtwMatrix)
+{
+    rapidjson::Value dtwdistances;
+    
+    if (retireve(OM_JSON_DTW, messages, dtwdistances))
+    {
+        if (!dtwdistances.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_DTW << " is not an array");
+        else
+        {
+            rapidjson::Value arr = dtwdistances.GetArray();
+            
+            for (int i = 0; i < PAIRWISE_HEIGHT && arr.Size(); ++i)
+            {
+                if (!arr[i].IsArray())
+                    SET_CHOP_WARN(msg << "JSON format error: array expected as element of " << OM_JSON_DTW);
+                else
+                {
+                    bool hasRow = (i < arr.Size());
+                    rapidjson::Value row;
+                    
+                    if (hasRow)
+                        row = arr[i].GetArray();
+                    
+                    for (int j = 0; j < PAIRWISE_WIDTH; ++j)
+                    {
+                        if (j == 0) // this is for ids
+                        {
+                            if (i < idOrder.size())
+                            {
+                                int id = idOrder[i];
+                                dtwMatrix[i*PAIRWISE_WIDTH+j] = id;
+                            }
+                        }
+                        else
+                        {
+                            bool hasCol = (hasRow ? j-1 < row.Size() : false);
+                            if (hasRow && hasCol)
+                                dtwMatrix[i*PAIRWISE_WIDTH+j] = row[j-1].GetFloat();
+                        }
+                    }
+                }
+            }
+            
+            if (arr.Size() == 0)
+                SET_CHOP_WARN(msg << "Dtw array is empty");
+        }
+    }
+    else
+        SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
+                      << OM_JSON_DTW << " in received json messages");
+}
