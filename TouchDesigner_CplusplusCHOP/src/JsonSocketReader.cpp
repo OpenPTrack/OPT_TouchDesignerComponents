@@ -74,6 +74,14 @@ JsonSocketReader::stop()
     }
 }
 
+void
+JsonSocketReader::reset()
+{
+    lock_guard<mutex> lock(slavesMutex_);
+    for (auto s:slaves_) s->onSocketReaderWillReset();
+    slaves_.clear();
+}
+
 bool
 JsonSocketReader::isRunning()
 {

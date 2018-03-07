@@ -14,6 +14,7 @@
 
 #define OM_JSON_FIRSTDERS       "firstdirs"
 #define OM_JSON_SECONDDERS      "seconddirs"
+#define OM_JSON_SPEEDS          "speeds"
 
 #define OM_JSON_PAIRWISE        "pairwise"
 #define OM_JSON_CLUSTERCENTERS  "clustercenters"
@@ -27,8 +28,8 @@
 
 #define OM_JSON_HOTSPOTS        "hotspots"
 #define OM_JSON_DTW             "dtwdistances"
-#define OM_JSON_PCAX            "pca_x"
-#define OM_JSON_PCAY            "pca_y"
+#define OM_JSON_PCA1            "pca1"
+#define OM_JSON_PCA2            "pca2"
 
 //#define OM_JSON_TEMPLATING      "templates"
 

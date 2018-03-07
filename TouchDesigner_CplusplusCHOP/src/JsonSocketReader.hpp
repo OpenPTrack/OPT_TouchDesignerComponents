@@ -37,6 +37,7 @@ public:
     public:
         virtual void onNewJsonObjectReceived(const rapidjson::Document&) = 0;
         virtual void onSocketReaderError(const std::string&) = 0;
+        virtual void onSocketReaderWillReset() = 0;
     };
     
     JsonSocketReader(int port);
@@ -48,6 +49,7 @@ public:
     
     // stops listening socket
     void stop();
+    void reset();
     
     bool isRunning();
     

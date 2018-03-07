@@ -42,7 +42,8 @@ public:
         Cluster,
         Hotspots,
         Pca,
-        Stagedist
+        Stagedist,
+        Templates
     } OutChoice;
     
     OM_CHOP(const OP_NodeInfo * info);
@@ -62,6 +63,7 @@ public:
                                  OP_InfoCHOPChan* chan) override;
     
     virtual void setupParameters(OP_ParameterManager * manager) override;
+    virtual void pulsePressed(const char *name) override;
     
     virtual const char* getWarningString() override
     {
@@ -98,6 +100,7 @@ private:
     
     void onNewJsonObjectReceived(const rapidjson::Document&) override;
     void onSocketReaderError(const std::string&) override;
+    void onSocketReaderWillReset() override;
     
     void processQueue();
     
@@ -114,17 +117,21 @@ private:
                          std::vector<int>& idOrder,
                          std::map<int, std::pair<float,float>>& derivatives1,
                          std::map<int, std::pair<float,float>>& derivatives2,
+                         std::map<int, float>& speeds,
                          float* pairwiseMatrix,
                          std::vector<std::vector<float>>& clustersData,
                          std::map<int, std::vector<float>>& stageDistances,
                          std::vector<std::vector<float>>& hotspotsData,
-                         float* dtwMatrix);
+                         float* dtwMatrix,
+                         std::vector<std::vector<float>>& groupTarget,
+                         std::map<std::string, std::vector<float>>& templates);
     void processIdOrder(std::vector<rapidjson::Document>& messages,
                         std::vector<int>& idOrder);
     void processDerivatives(std::vector<rapidjson::Document>& messages,
                             std::vector<int>& idOrder,
                             std::map<int, std::pair<float,float>>& derivatives1,
-                            std::map<int, std::pair<float,float>>& derivatives2);
+                            std::map<int, std::pair<float,float>>& derivatives2,
+                            std::map<int, float>& speeds);
     void processPairwise(std::vector<rapidjson::Document>& messages,
                          std::vector<int>& idOrder,
                          float* pairwiseMatrix);
@@ -138,6 +145,11 @@ private:
     void processDtw(std::vector<rapidjson::Document>& messages,
                     std::vector<int>& idOrder,
                     float* dtwMatrix);
+    void processGroupTarget(std::vector<rapidjson::Document>& messages,
+                            std::vector<std::vector<float>>& groupTarget);
+    void processTemplates(std::vector<rapidjson::Document>& messages,
+                          std::vector<int>& idOrder,
+                          std::map<std::string, std::vector<float>>& templates);
     
     bool retireve(const std::string& key,
                   std::vector<rapidjson::Document>&,
