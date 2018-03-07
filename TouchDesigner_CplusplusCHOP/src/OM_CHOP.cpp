@@ -53,20 +53,23 @@
 #define PAIRWISE_SIZE (PAIRWISE_WIDTH*PAIRWISE_HEIGHT)
 
 using namespace std;
-using namespace std::chrono;
+using namespace chrono;
 
-static const char* DerOutNames[5] = { "id", "d1x", "d1y", "d2x", "d2y"};
+static const char* DerOutNames[6] = { "id", "d1x", "d1y", "d2x", "d2y", "speed"};
 static const char* StageDistNames[5] = { "id", "us", "ds", "sl", "sr"};
 static const char* ClusterOutNames[3] = { "x", "y", "spread"};
 static const char* HotspotsOutNames[3] = { "x", "y", "spread"};
+static const char* GroupTargetNames[4] = { "val", "x", "y", "z"};
 
-#define NPAR_OUTPUT 7
+#define NPAR_OUTPUT 8
 #define PAR_OUTPUT  "Output"
+#define PAR_REINIT  "Init"
+#define PAR_PORTNUM "Portnum"
 #define PAR_MAXTRACKED "Maxtracked"
 
-static const char *menuNames[] = { "Derivatives", "Pairwise", "Dtw", "Clusters", "Hotspots", "Pca", "Stagedist" };
-static const char *labels[] = { "Derivatives", "Pairwise matrix", "DTW", "Clusters", "Hotspots", "PCA", "Stage Distances" };
-static map<std::string, OM_CHOP::OutChoice> OutputMenuMap = {
+static const char *menuNames[] = { "Derivatives", "Pairwise", "Dtw", "Clusters", "Hotspots", "Pca", "Stagedist", "Templates" };
+static const char *labels[] = { "Derivatives", "Pairwise matrix", "Path similarity", "Clusters", "Hotspots", "Group target", "Stage Distances", "Templates" };
+static map<string, OM_CHOP::OutChoice> OutputMenuMap = {
     { "Uknown", OM_CHOP::OutChoice::Unknown },
     { "Derivatives", OM_CHOP::OutChoice::Derivatives },
     { "Pairwise", OM_CHOP::OutChoice::Pairwise },
@@ -74,12 +77,13 @@ static map<std::string, OM_CHOP::OutChoice> OutputMenuMap = {
     { "Clusters", OM_CHOP::OutChoice::Cluster },
     { "Hotspots", OM_CHOP::OutChoice::Hotspots },
     { "Pca", OM_CHOP::OutChoice::Pca },
-    { "Stagedist", OM_CHOP::OutChoice::Stagedist }
+    { "Stagedist", OM_CHOP::OutChoice::Stagedist },
+    { "Templates", OM_CHOP::OutChoice::Templates }
 };
 
 #define SET_CHOP_ERROR(errexpr) (\
 {\
-std::stringstream msg; \
+stringstream msg; \
 errexpr; \
 errorMessage_ = msg.str(); \
 printf("%s\n", msg.str().c_str());\
@@ -87,7 +91,7 @@ printf("%s\n", msg.str().c_str());\
 
 #define SET_CHOP_WARN(errexpr) (\
 {\
-std::stringstream msg; \
+stringstream msg; \
 errexpr; \
 warningMessage_ = msg.str(); \
 })
@@ -173,7 +177,7 @@ bool OM_CHOP::getOutputInfo(CHOP_OutputInfo * info)
     
     switch (outChoice_) {
         case Derivatives:
-            info->numChannels = 5; // id d1x d1y d2x d2y
+            info->numChannels = 6; // id speed d1x d1y d2x d2y
             break;
         case Pairwise: // fallthrough
         case Dtw:
@@ -189,6 +193,13 @@ bool OM_CHOP::getOutputInfo(CHOP_OutputInfo * info)
         case Hotspots:
             info->numChannels = 3; // x y z
             break;
+        case Pca:
+            info->numSamples = 2;
+            info->numChannels = 4;
+            break;
+        case Templates:
+            break;
+        case Unknown:
         default:
             break;
     }
@@ -227,6 +238,11 @@ const char* OM_CHOP::getChannelName(int index, void* reserved)
             return HotspotsOutNames[index];
         }
             break;
+        case Pca:
+        {
+            return GroupTargetNames[index];
+        }
+            break;
         default:
             break;
     }
@@ -246,11 +262,13 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
         vector<int> idOrder;
         map<int, pair<float,float>> derivatives1;
         map<int, pair<float,float>> derivatives2;
+        map<int, float> speeds;
         map<int, vector<float>> dwtDistances;
         vector<vector<float>> clusters;
         map<int, vector<float>> stageDistances;
         vector<vector<float>> hotspotsData;
-        
+        vector<vector<float> > groupTarget;
+        map<string, vector<float>> templates;
         
         if (!queueBusy_)
         {
@@ -260,7 +278,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
             {
                 if ((*it).second.second.size() >= OPENMOVES_MSG_BUNDLE)
                 {
-                    std::vector<rapidjson::Document>& msgs = (*it).second.second;
+                    vector<rapidjson::Document>& msgs = (*it).second.second;
                     bundleStr = bundleToString(msgs);
                     
 #ifdef PRINT_MESSAGES
@@ -275,12 +293,14 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
 #endif
                     
                     processMessages(msgs, idOrder,
-                                    derivatives1, derivatives2,
+                                    derivatives1, derivatives2, speeds,
                                     pairwiseMat_,
                                     clusters,
                                     stageDistances,
                                     hotspotsData,
-                                    dtwMat_);
+                                    dtwMat_,
+                                    groupTarget,
+                                    templates);
                     messages_.erase(it++);
                     
                     break;
@@ -308,7 +328,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                 {
                     int id = pair.first;
                     // get sample idx of this id
-                    std::vector<int>::iterator it = std::find(idOrder.begin(), idOrder.end(), id);
+                    vector<int>::iterator it = find(idOrder.begin(), idOrder.end(), id);
                     
                     if (it == idOrder.end())
                     {
@@ -330,7 +350,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                 {
                     int id = pair.first;
                     // get sample idx of this id
-                    std::vector<int>::iterator it = std::find(idOrder.begin(), idOrder.end(), id);
+                    vector<int>::iterator it = find(idOrder.begin(), idOrder.end(), id);
                     
                     if (it == idOrder.end())
                     {
@@ -344,6 +364,24 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                         
                         output->channels[3][sampleIdx] = pair.second.first;
                         output->channels[4][sampleIdx] = pair.second.second;
+                    }
+                }
+                
+                for (auto pair:speeds)
+                {
+                    int id = pair.first;
+                    vector<int>::iterator it = find(idOrder.begin(), idOrder.end(), id);
+                    
+                    if (it == idOrder.end())
+                    {
+                        SET_CHOP_WARN(msg << "Speed id (" << id << ") was not found in available id"
+                                      " list. Message bundle: " << bundleStr);
+                    }
+                    else
+                    {
+                        long sampleIdx = it-idOrder.begin();
+                        
+                        output->channels[5][sampleIdx] = pair.second;
                     }
                 }
             }
@@ -389,7 +427,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                 {
                     int id = pair.first;
                     // get sample idx of this id
-                    std::vector<int>::iterator it = std::find(idOrder.begin(), idOrder.end(), id);
+                    vector<int>::iterator it = find(idOrder.begin(), idOrder.end(), id);
                     
                     if (it == idOrder.end())
                         SET_CHOP_WARN(msg << "stagedist id (" << id << ") was not found in available id"
@@ -426,6 +464,24 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                 }
             }
                 break;
+            case Pca:
+            {
+                assert(groupTarget.size() <= 2);
+                
+                int sampleIdx = 0;
+                for (auto v:groupTarget)
+                {
+                    for (int i = 0; i < v.size(); ++i)
+                        output->channels[i][sampleIdx] = v[i];
+                    sampleIdx++;
+                }
+            }
+                break;
+            case Templates:
+            {
+                
+            }
+                break;
             default:
                 break;
         }
@@ -452,6 +508,21 @@ OM_CHOP::getInfoCHOPChan(int32_t index,
 void OM_CHOP::setupParameters(OP_ParameterManager* manager)
 {
     {
+        OP_NumericParameter reinit(PAR_REINIT), portnum(PAR_PORTNUM);
+        
+        reinit.label = "Init";
+        reinit.page = "General";
+        
+        portnum.label = "Port";
+        portnum.page = "General";
+        portnum.defaultValues[0] = PORTNUM;
+        
+        OP_ParAppendResult res = manager->appendPulse(reinit);
+        assert(res == OP_ParAppendResult::Success);
+        res = manager->appendFloat(portnum);
+        assert(res == OP_ParAppendResult::Success);
+    }
+    {
         OP_StringParameter output(PAR_OUTPUT);
         
         output.label = "Output";
@@ -462,10 +533,8 @@ void OM_CHOP::setupParameters(OP_ParameterManager* manager)
                                                      (const char**)labels);
         assert(res == OP_ParAppendResult::Success);
     
-        //Create new parameter
         OP_NumericParameter MaxTracked;
         
-        //Parameter details
         MaxTracked.name = PAR_MAXTRACKED;
         MaxTracked.label = "Max Tracked";
         MaxTracked.page = "Output";
@@ -473,9 +542,16 @@ void OM_CHOP::setupParameters(OP_ParameterManager* manager)
         MaxTracked.minValues[0] = 1;
         MaxTracked.maxValues[0] = PAIRWISE_MAXDIM;
         
-        //Add it to CHOP.
-        OP_ParAppendResult res = manager->appendInt(MaxTracked);
+        res = manager->appendInt(MaxTracked);
         assert(res == OP_ParAppendResult::Success);
+    }
+}
+
+void OM_CHOP::pulsePressed(const char *name)
+{
+    if (!strcmp(name, "Init"))
+    {
+        
     }
 }
 
@@ -520,9 +596,15 @@ OM_CHOP::onNewJsonObjectReceived(const rapidjson::Document &d)
 }
 
 void
-OM_CHOP::onSocketReaderError(const std::string &m)
+OM_CHOP::onSocketReaderError(const string &m)
 {
     SET_CHOP_WARN(msg << m);
+}
+
+void
+OM_CHOP::onSocketReaderWillReset()
+{
+    // clear everything and wait for socket reader to be re-created
 }
 
 void
@@ -572,28 +654,33 @@ OM_CHOP::processQueue()
 }
 
 void
-OM_CHOP::processMessages(std::vector<rapidjson::Document>& messages,
-                         std::vector<int>& idOrder,
-                         std::map<int, std::pair<float,float>>& derivatives1,
-                         std::map<int, std::pair<float,float>>& derivatives2,
+OM_CHOP::processMessages(vector<rapidjson::Document>& messages,
+                         vector<int>& idOrder,
+                         map<int, pair<float,float>>& derivatives1,
+                         map<int, pair<float,float>>& derivatives2,
+                         map<int, float>& speeds,
                          float* pairwiseMatrix,
-                         std::vector<std::vector<float>>& clustersData,
-                         std::map<int, std::vector<float>>& stageDistances,
-                         std::vector<std::vector<float>>& hotspotsData,
-                         float* dtwMatrix)
+                         vector<vector<float>>& clustersData,
+                         map<int, vector<float>>& stageDistances,
+                         vector<vector<float>>& hotspotsData,
+                         float* dtwMatrix,
+                         vector<vector<float>>& groupTarget,
+                         map<string, vector<float>>& templates)
 {
     processIdOrder(messages, idOrder);
-    processDerivatives(messages, idOrder, derivatives1, derivatives2);
+    processDerivatives(messages, idOrder, derivatives1, derivatives2, speeds);
     processPairwise(messages, idOrder, pairwiseMatrix);
     processClusters(messages, clustersData);
     processDtw(messages, idOrder, dtwMatrix);
     processStageDistances(messages, idOrder, stageDistances);
     processHotspots(messages, hotspotsData);
+    processGroupTarget(messages, groupTarget);
+    processTemplates(messages, idOrder, templates);
 }
 
 bool
-OM_CHOP::retireve(const std::string& key,
-                  std::vector<rapidjson::Document>& messages,
+OM_CHOP::retireve(const string& key,
+                  vector<rapidjson::Document>& messages,
                   rapidjson::Value& val)
 {
     
@@ -623,7 +710,7 @@ OM_CHOP::retireve(const std::string& key,
 void
 OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
 {
-    std::string outputChoice(inputs->getParString(PAR_OUTPUT));
+    string outputChoice(inputs->getParString(PAR_OUTPUT));
     outChoice_ = OutputMenuMap[outputChoice];
     
 //    inputs->enablePar("Maxclusters", false);
@@ -649,8 +736,8 @@ OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
 }
 
 void
-OM_CHOP::processIdOrder(std::vector<rapidjson::Document>& messages,
-                    std::vector<int>& idOrder)
+OM_CHOP::processIdOrder(vector<rapidjson::Document>& messages,
+                    vector<int>& idOrder)
 { // retrieving id order
     rapidjson::Value idorder;
     
@@ -706,10 +793,11 @@ OM_CHOP::processIdOrder(std::vector<rapidjson::Document>& messages,
 }
 
 void
-OM_CHOP::processDerivatives(std::vector<rapidjson::Document>& messages,
-                            std::vector<int>& idOrder,
-                            std::map<int, std::pair<float,float>>& derivatives1,
-                            std::map<int, std::pair<float,float>>& derivatives2)
+OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
+                            vector<int>& idOrder,
+                            map<int, pair<float,float>>& derivatives1,
+                            map<int, pair<float,float>>& derivatives2,
+                            map<int, float>& speed)
 { // retrieving derivatives
     rapidjson::Value firstDirs;
     if (retireve(OM_JSON_FIRSTDERS, messages, firstDirs))
@@ -718,11 +806,11 @@ OM_CHOP::processDerivatives(std::vector<rapidjson::Document>& messages,
             SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
         else
         {
-            int idx = 0;
+//            int idx = 0;
             const rapidjson::Value& arr = firstDirs.GetArray();
             for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
             {
-                int id = idOrder[idx++];
+                int id = idOrder[i];
                 derivatives1[id] = pair<float, float>(0,0);
                 
                 // if value is string then it's "Null" -> skip
@@ -745,11 +833,11 @@ OM_CHOP::processDerivatives(std::vector<rapidjson::Document>& messages,
             SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
         else
         {
-            int idx = 0;
+//            int idx = 0;
             const rapidjson::Value& arr = secondDirs.GetArray();
             for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
             {
-                int id = idOrder[idx++];
+                int id = idOrder[i];
                 derivatives2[id] = pair<float, float>(0,0);
                 
                 // if value is string then it's "Null" -> skip
@@ -765,6 +853,22 @@ OM_CHOP::processDerivatives(std::vector<rapidjson::Document>& messages,
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
                       << OM_JSON_SECONDDERS << " in received json messages");
     
+    rapidjson::Value speeds;
+    if (retireve(OM_JSON_SPEEDS, messages, speeds))
+    {
+        if (!speeds.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: 'speeds' is expected to be an array");
+        else
+        {
+            const rapidjson::Value& arr = speeds.GetArray();
+            for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
+            {
+                int id = idOrder[i];
+                speed[id] = arr[i].GetFloat();
+            }
+        }
+    }
+    
 #ifdef PRINT_DERIVATIVES
     cout << "derivatives1: " << endl;
     for (auto v:derivatives1)
@@ -777,8 +881,8 @@ OM_CHOP::processDerivatives(std::vector<rapidjson::Document>& messages,
 }
 
 void
-OM_CHOP::processPairwise(std::vector<rapidjson::Document>& messages,
-                         std::vector<int>& idOrder,
+OM_CHOP::processPairwise(vector<rapidjson::Document>& messages,
+                         vector<int>& idOrder,
                          float* pairwiseMatrix)
 {
     rapidjson::Value pairwise;
@@ -824,8 +928,8 @@ OM_CHOP::processPairwise(std::vector<rapidjson::Document>& messages,
 }
 
 void
-OM_CHOP::processClusters(std::vector<rapidjson::Document>& messages,
-                         std::vector<std::vector<float>>& clustersData)
+OM_CHOP::processClusters(vector<rapidjson::Document>& messages,
+                         vector<vector<float>>& clustersData)
 { //  retrieve clusters
     rapidjson::Value clusters;
     
@@ -881,9 +985,9 @@ OM_CHOP::processClusters(std::vector<rapidjson::Document>& messages,
 }
 
 void
-OM_CHOP::processStageDistances(std::vector<rapidjson::Document>& messages,
-                               std::vector<int>& idOrder,
-                               std::map<int, std::vector<float>>& stageDistances)
+OM_CHOP::processStageDistances(vector<rapidjson::Document>& messages,
+                               vector<int>& idOrder,
+                               map<int, vector<float>>& stageDistances)
 { // retrieving stage distances
     rapidjson::Value stageDist;
     if (retireve(OM_JSON_STAGEDIST, messages, stageDist))
@@ -933,8 +1037,8 @@ OM_CHOP::processStageDistances(std::vector<rapidjson::Document>& messages,
 }
 
 void
-OM_CHOP::processHotspots(std::vector<rapidjson::Document>& messages,
-                     std::vector<std::vector<float>>& hotspotsData)
+OM_CHOP::processHotspots(vector<rapidjson::Document>& messages,
+                     vector<vector<float>>& hotspotsData)
 { // retrieveing hotspots
     rapidjson::Value hotspots;
     
@@ -969,8 +1073,8 @@ OM_CHOP::processHotspots(std::vector<rapidjson::Document>& messages,
 }
 
 void
-OM_CHOP::processDtw(std::vector<rapidjson::Document>& messages,
-                    std::vector<int>& idOrder,
+OM_CHOP::processDtw(vector<rapidjson::Document>& messages,
+                    vector<int>& idOrder,
                     float* dtwMatrix)
 {
     rapidjson::Value dtwdistances;
@@ -1022,4 +1126,101 @@ OM_CHOP::processDtw(std::vector<rapidjson::Document>& messages,
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
                       << OM_JSON_DTW << " in received json messages");
+}
+
+void
+OM_CHOP::processGroupTarget(vector<rapidjson::Document> &messages,
+                            vector<vector<float>> &groupTarget)
+{
+    {
+        rapidjson::Value eigenVals;
+        
+        if (retireve(OM_JSON_PCA1, messages, eigenVals))
+        {
+            if (!eigenVals.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: "
+                              << OM_JSON_PCA1 << " it not an array");
+            else
+            {
+                rapidjson::Value arr = eigenVals.GetArray();
+                
+                if (arr.Size() != 2)
+                    SET_CHOP_WARN(msg << "JSON format error: "
+                                  << OM_JSON_PCA1 << " expected 2 elements in the array");
+                else
+                {
+                    groupTarget.push_back(vector<float>(arr[0].GetFloat()));
+                    
+                    if (!arr[1].IsArray())
+                        SET_CHOP_WARN(msg << "JSON format errors: "
+                                      << OM_JSON_PCA1 << " second element must be a vector");
+                    else
+                    {
+                        const rapidjson::Value& v = arr[1].GetArray();
+                        
+                        if (v.Size() != 3)
+                            SET_CHOP_WARN(msg << "JSON format error: "
+                                          << OM_JSON_PCA1 << " expected to have 3 elements for eigen  vector");
+                        else
+                        {
+                            groupTarget[0].push_back(v[0].GetFloat());
+                            groupTarget[0].push_back(v[1].GetFloat());
+                            groupTarget[0].push_back(v[2].GetFloat());
+                        }
+                    }
+                }
+            }
+        }
+        else
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PCA1 << " not found");
+    }
+    {
+        rapidjson::Value eigenVals;
+        
+        if (retireve(OM_JSON_PCA2, messages, eigenVals))
+        {
+            if (!eigenVals.IsArray())
+                SET_CHOP_WARN(msg << "JSON format error: "
+                              << OM_JSON_PCA2 << " it not an array");
+            else
+            {
+                rapidjson::Value arr = eigenVals.GetArray();
+                
+                if (arr.Size() != 2)
+                    SET_CHOP_WARN(msg << "JSON format error: "
+                                  << OM_JSON_PCA2 << " expected 2 elements in the array");
+                else
+                {
+                    groupTarget.push_back(vector<float>(arr[0].GetFloat()));
+                    
+                    if (!arr[1].IsArray())
+                        SET_CHOP_WARN(msg << "JSON format errors: "
+                                      << OM_JSON_PCA2 << " second element must be a vector");
+                    else
+                    {
+                        const rapidjson::Value& v = arr[1].GetArray();
+                        
+                        if (v.Size() != 3)
+                            SET_CHOP_WARN(msg << "JSON format error: "
+                                          << OM_JSON_PCA2 << " expected to have 3 elements for eigen  vector");
+                        else
+                        {
+                            groupTarget[1].push_back(v[0].GetFloat());
+                            groupTarget[1].push_back(v[1].GetFloat());
+                            groupTarget[1].push_back(v[2].GetFloat());
+                        }
+                    }
+                }
+            }
+        }
+        else
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PCA2 << " not found");
+    }
+}
+
+void
+OM_CHOP::processTemplates(vector<rapidjson::Document> &messages,
+                          vector<int> &idOrder, map<string, vector<float> > &templates)
+{
+    
 }
