@@ -276,32 +276,39 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
             {
                 if ((*it).second.second.size() >= OPENMOVES_MSG_BUNDLE)
                 {
+                    bool oldMessage = ((*it).first < seq_);
                     vector<rapidjson::Document>& msgs = (*it).second.second;
                     bundleStr = bundleToString(msgs);
                     
-#ifdef PRINT_MESSAGES
-                    for (auto& m:msgs)
+                    if (oldMessage)
+                        SET_CHOP_WARN(msg << "Received old message: seq " << (*it).first << " vs current seq " <<  seq_)
+                    else
                     {
-                        rapidjson::StringBuffer buffer;
-                        buffer.Clear();
-                        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-                        m.Accept(writer);
-                        cout << "got message: " << buffer.GetString() << endl;
-                    }
+#ifdef PRINT_MESSAGES
+                        for (auto& m:msgs)
+                        {
+                            rapidjson::StringBuffer buffer;
+                            buffer.Clear();
+                            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                            m.Accept(writer);
+                            cout << "got message: " << buffer.GetString() << endl;
+                        }
 #endif
+                        
+                        processMessages(msgs, idOrder,
+                                        derivatives1, derivatives2, speeds, accelerations,
+                                        pairwiseMat_,
+                                        clusters,
+                                        stageDistances,
+                                        hotspotsData,
+                                        dtwMat_,
+                                        groupTarget,
+                                        templates);
+                    }
                     
-                    processMessages(msgs, idOrder,
-                                    derivatives1, derivatives2, speeds, accelerations,
-                                    pairwiseMat_,
-                                    clusters,
-                                    stageDistances,
-                                    hotspotsData,
-                                    dtwMat_,
-                                    groupTarget,
-                                    templates);
                     messages_.erase(it++);
                     
-                    break;
+                    break; // we're done here
                 } // if messages bundle
                 else
                 {
