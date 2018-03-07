@@ -37,21 +37,18 @@
     #define OPT_CHOP_API DLLEXPORT
 #endif
 
-#define SET_CHOP_ERROR(errexpr) (\
-{\
-    std::stringstream msg; \
-    errexpr; \
-    errorMessage_ = msg.str(); \
-    perror(msg.str().c_str()); \
-})
+#define SET_CHOP_ERROR(errexpr) {\
+stringstream msg; \
+errexpr; \
+errorMessage_ = msg.str(); \
+printf("%s\n", msg.str().c_str());\
+}
 
-#define SET_CHOP_WARN(errexpr) (\
-{\
-    std::stringstream msg; \
-    errexpr; \
-    warningMessage_ = msg.str(); \
-    perror(msg.str().c_str()); \
-})
+#define SET_CHOP_WARN(errexpr) {\
+stringstream msg; \
+errexpr; \
+warningMessage_ = msg.str(); \
+}
 
 #define PRINT_MSG
 
@@ -108,7 +105,7 @@ heartbeat(0), maxId(0)
     
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
     {
-        SET_CHOP_ERROR(msg << "Socket creation failure (" << WSAGetLastError() << "): " << strerror(WSAGetLastError()));
+        SET_CHOP_ERROR(msg << "Socket creation failure (" << WSAGetLastError() << "): " << strerror(WSAGetLastError()))
 	}
 
 	server.sin_family = AF_INET;
@@ -117,12 +114,12 @@ heartbeat(0), maxId(0)
     
 	if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
     {
-        SET_CHOP_ERROR(msg << "Socket configuration error (" << WSAGetLastError() << "): " << strerror(WSAGetLastError()));
+        SET_CHOP_ERROR(msg << "Socket configuration error (" << WSAGetLastError() << "): " << strerror(WSAGetLastError()))
 	}
     
     if (:: bind(s, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR)
     {
-        SET_CHOP_ERROR(msg << "Socket bind failure (" << WSAGetLastError() << "): " << strerror(WSAGetLastError()));
+        SET_CHOP_ERROR(msg << "Socket bind failure (" << WSAGetLastError() << "): " << strerror(WSAGetLastError()))
     }
 }
 
