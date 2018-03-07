@@ -50,7 +50,7 @@
 #define PAIRWISE_MAXDIM 25
 #define PAIRWISE_WIDTH (PAIRWISE_MAXDIM+1)
 #define PAIRWISE_HEIGHT (PAIRWISE_MAXDIM)
-#define PAIRWISE_SIZE (PAIRWISE_WIDTH*PAIRWISE_HEIGHT)
+#define PAIRWISE_SIZE ((PAIRWISE_WIDTH)*PAIRWISE_HEIGHT)
 
 using namespace std;
 using namespace chrono;
@@ -1155,6 +1155,8 @@ OM_CHOP::processHotspots(vector<rapidjson::Document>& messages,
                         hotspotsData.push_back(vector<float>({ coords[0].GetFloat(), coords[1].GetFloat()}));
                         if (coords.Size() >= 3)
                             hotspotsData.back().push_back(coords[2].GetFloat());
+                        else
+                            hotspotsData.back().push_back(-1);
                     }
                 }
             }
