@@ -81,20 +81,18 @@ static map<string, OM_CHOP::OutChoice> OutputMenuMap = {
     { "Templates", OM_CHOP::OutChoice::Templates }
 };
 
-#define SET_CHOP_ERROR(errexpr) (\
-{\
+#define SET_CHOP_ERROR(errexpr) {\
 stringstream msg; \
 errexpr; \
 errorMessage_ = msg.str(); \
 printf("%s\n", msg.str().c_str());\
-})
+}
 
-#define SET_CHOP_WARN(errexpr) (\
-{\
+#define SET_CHOP_WARN(errexpr) {\
 stringstream msg; \
 errexpr; \
 warningMessage_ = msg.str(); \
-})
+}
 
 //Required functions.
 extern "C"
@@ -312,7 +310,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     {
                         SET_CHOP_WARN(msg << "Cleaning up old unprocessed message bundle (id " << (*it).first
                                       << "). This normally should not happen, check incoming messages bundle length. Deleted: "
-                                      << bundleStr);
+                                      << bundleStr)
                         messages_.erase(it++);
                     }
                     else
@@ -333,7 +331,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     if (it == idOrder.end())
                     {
                         SET_CHOP_WARN(msg << "1st Derivatives id (" << id << ") was not found in available id"
-                                      " list. Message bundle: " << bundleStr);
+                                      " list. Message bundle: " << bundleStr)
 //                        assert(it != idOrder.end());
                     }
                     else
@@ -355,7 +353,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     if (it == idOrder.end())
                     {
                         SET_CHOP_WARN(msg << "2nd Derivatives id (" << id << ") was not found in available id"
-                                      " list. Message bundle: " << bundleStr);
+                                      " list. Message bundle: " << bundleStr)
 //                        assert(it != idOrder.end());
                     }
                     else
@@ -375,7 +373,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     if (it == idOrder.end())
                     {
                         SET_CHOP_WARN(msg << "Speed id (" << id << ") was not found in available id"
-                                      " list. Message bundle: " << bundleStr);
+                                      " list. Message bundle: " << bundleStr)
                     }
                     else
                     {
@@ -431,7 +429,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     
                     if (it == idOrder.end())
                         SET_CHOP_WARN(msg << "stagedist id (" << id << ") was not found in available id"
-                                      " list. Message bundle: " << bundleStr);
+                                      " list. Message bundle: " << bundleStr)
                     else
                     {
                         long sampleIdx = it-idOrder.begin();
@@ -446,7 +444,8 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                             output->channels[4][sampleIdx] = pair.second[3];
                         }
                         else
-                            SET_CHOP_WARN(msg << "Insufficient data on stage dists (only " << pair.second.size() << " elements instead of 4)");
+                            SET_CHOP_WARN(msg << "Insufficient data on stage dists (only "
+                                          << pair.second.size() << " elements instead of 4)")
                     }
                 }
             }
@@ -573,7 +572,7 @@ OM_CHOP::setupSocketReader()
     }
     catch (runtime_error& e)
     {
-        SET_CHOP_ERROR(msg << e.what());
+        SET_CHOP_ERROR(msg << e.what())
     }
 }
 
@@ -598,7 +597,7 @@ OM_CHOP::onNewJsonObjectReceived(const rapidjson::Document &d)
 void
 OM_CHOP::onSocketReaderError(const string &m)
 {
-    SET_CHOP_WARN(msg << m);
+    SET_CHOP_WARN(msg << m)
 }
 
 void
@@ -626,7 +625,7 @@ OM_CHOP::processQueue()
             seqNo = documentQueue_.front()["header"]["seq"].GetInt();
         }
         else
-            SET_CHOP_WARN(msg << "Bad json formatting: can't locate 'seq' field");
+            SET_CHOP_WARN(msg << "Bad json formatting: can't locate 'seq' field")
         
         if (seqNo >= 0)
         {
@@ -649,7 +648,7 @@ OM_CHOP::processQueue()
             SET_CHOP_WARN(msg << "Incoming message queue is too large - " << messages_.size()
                           << " (data is received, but not processed). Check openmoves message "
                           "bundle size (current bundle size is "
-                          << OPENMOVES_MSG_BUNDLE << "; was the protocol updated?)");
+                          << OPENMOVES_MSG_BUNDLE << "; was the protocol updated?)")
     }
 }
 
@@ -744,7 +743,7 @@ OM_CHOP::processIdOrder(vector<rapidjson::Document>& messages,
     if (retireve(OM_JSON_IDORDER, messages, idorder))
     {
         if (!idorder.IsArray())
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_IDORDER << " is not an array." );
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_IDORDER << " is not an array." )
         else
         {
             const rapidjson::Value& arr = idorder.GetArray();
@@ -754,7 +753,7 @@ OM_CHOP::processIdOrder(vector<rapidjson::Document>& messages,
     }
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
-                      << OM_JSON_IDORDER << " in received json messages");
+                      << OM_JSON_IDORDER << " in received json messages")
     
     // cleanupt idorder by alive ids
     rapidjson::Value aliveids;
@@ -782,7 +781,7 @@ OM_CHOP::processIdOrder(vector<rapidjson::Document>& messages,
     }
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
-                      << OM_JSON_ALIVEIDS << " in received json messages");
+                      << OM_JSON_ALIVEIDS << " in received json messages")
     
 #ifdef PRINT_IDS
     cout << "filtered ids: ";
@@ -803,7 +802,7 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
     if (retireve(OM_JSON_FIRSTDERS, messages, firstDirs))
     {
         if (!firstDirs.IsArray())
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array")
         else
         {
 //            int idx = 0;
@@ -824,13 +823,13 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
     } // if
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
-                      << OM_JSON_FIRSTDERS << " in received json messages");
+                      << OM_JSON_FIRSTDERS << " in received json messages")
     
     rapidjson::Value secondDirs;
     if (retireve(OM_JSON_SECONDDERS, messages, secondDirs))
     {
         if (!firstDirs.IsArray())
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array")
         else
         {
 //            int idx = 0;
@@ -851,13 +850,13 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
     } // if
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
-                      << OM_JSON_SECONDDERS << " in received json messages");
+                      << OM_JSON_SECONDDERS << " in received json messages")
     
     rapidjson::Value speeds;
     if (retireve(OM_JSON_SPEEDS, messages, speeds))
     {
         if (!speeds.IsArray())
-            SET_CHOP_WARN(msg << "JSON format error: 'speeds' is expected to be an array");
+            SET_CHOP_WARN(msg << "JSON format error: 'speeds' is expected to be an array")
         else
         {
             const rapidjson::Value& arr = speeds.GetArray();
@@ -889,7 +888,7 @@ OM_CHOP::processPairwise(vector<rapidjson::Document>& messages,
     if (retireve(OM_JSON_PAIRWISE, messages, pairwise))
     {
         if (!pairwise.IsArray())
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PAIRWISE << " is not an array");
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PAIRWISE << " is not an array")
         else
         {
             rapidjson::Value arr = pairwise.GetArray();
@@ -924,7 +923,7 @@ OM_CHOP::processPairwise(vector<rapidjson::Document>& messages,
     } // if
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
-                      << OM_JSON_PAIRWISE << " in received json messages");
+                      << OM_JSON_PAIRWISE << " in received json messages")
 }
 
 void
@@ -936,7 +935,7 @@ OM_CHOP::processClusters(vector<rapidjson::Document>& messages,
     if (retireve(OM_JSON_CLUSTERCENTERS, messages, clusters))
     {
         if (!clusters.IsArray())
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array")
         else
         {
             rapidjson::Value arr = clusters.GetArray();
@@ -950,13 +949,13 @@ OM_CHOP::processClusters(vector<rapidjson::Document>& messages,
     }
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
-                      << OM_JSON_CLUSTERCENTERS << " in received json messages");
+                      << OM_JSON_CLUSTERCENTERS << " in received json messages")
     
     rapidjson::Value spreads;
     if (retireve(OM_JSON_CLUSTERSPREADS, messages, spreads))
     {
         if (!spreads.IsArray())
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array");
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_FIRSTDERS << " is not an array")
         else
         {
             rapidjson::Value arr = spreads.GetArray();
@@ -964,7 +963,7 @@ OM_CHOP::processClusters(vector<rapidjson::Document>& messages,
             if (arr.Size() != clustersData.size())
             {
                 SET_CHOP_WARN(msg << "Array length of cluster spreads (" << arr.Size()
-                              << ") does not equal number of clusters (" << clustersData.size() << ").");
+                              << ") does not equal number of clusters (" << clustersData.size() << ").")
             }
             else
             {
@@ -975,7 +974,7 @@ OM_CHOP::processClusters(vector<rapidjson::Document>& messages,
     }
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
-                      << OM_JSON_CLUSTERSPREADS << " in received json messages");
+                      << OM_JSON_CLUSTERSPREADS << " in received json messages")
     
 #ifdef PRINT_CLUSTERS
     cout << "clusters: " << endl;
@@ -993,7 +992,7 @@ OM_CHOP::processStageDistances(vector<rapidjson::Document>& messages,
     if (retireve(OM_JSON_STAGEDIST, messages, stageDist))
     {
         if (!stageDist.IsArray())
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " is not an array");
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " is not an array")
         else
         {
             int idx = 0;
@@ -1004,36 +1003,36 @@ OM_CHOP::processStageDistances(vector<rapidjson::Document>& messages,
                 stageDistances[id] = vector<float>();
                 
                 if (!arr[i].IsObject())
-                    SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " element is not a dictionary");
+                    SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_STAGEDIST << " element is not a dictionary")
                 else
                 {
                     if (arr[i].HasMember(OM_JSON_STAGEDIST_US))
                         stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_US].GetFloat());
                     else
                         SET_CHOP_WARN(msg << "JSON format error: can't find key "
-                                      << OM_JSON_STAGEDIST_US << " in stagedist object");
+                                      << OM_JSON_STAGEDIST_US << " in stagedist object")
                     if (arr[i].HasMember(OM_JSON_STAGEDIST_DS))
                         stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_DS].GetFloat());
                     else
                         SET_CHOP_WARN(msg << "JSON format error: can't find key "
-                                      << OM_JSON_STAGEDIST_DS << " in stagedist object");
+                                      << OM_JSON_STAGEDIST_DS << " in stagedist object")
                     if (arr[i].HasMember(OM_JSON_STAGEDIST_SL))
                         stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SL].GetFloat());
                     else
                         SET_CHOP_WARN(msg << "JSON format error: can't find key "
-                                      << OM_JSON_STAGEDIST_SL << " in stagedist object");
+                                      << OM_JSON_STAGEDIST_SL << " in stagedist object")
                     if (arr[i].HasMember(OM_JSON_STAGEDIST_SR))
                         stageDistances[id].push_back(arr[i][OM_JSON_STAGEDIST_SR].GetFloat());
                     else
                         SET_CHOP_WARN(msg << "JSON format error: can't find key "
-                                      << OM_JSON_STAGEDIST_SR << " in stagedist object");
+                                      << OM_JSON_STAGEDIST_SR << " in stagedist object")
                 }
             } // for i
         }
     } // if
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
-                      << OM_JSON_STAGEDIST << " in received json messages");
+                      << OM_JSON_STAGEDIST << " in received json messages")
 }
 
 void
@@ -1045,7 +1044,7 @@ OM_CHOP::processHotspots(vector<rapidjson::Document>& messages,
     if (retireve(OM_JSON_HOTSPOTS, messages, hotspots))
     {
         if (!hotspots.IsArray())
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_HOTSPOTS << " is not an array");
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_HOTSPOTS << " is not an array")
         else
         {
             rapidjson::Value arr = hotspots.GetArray();
@@ -1056,7 +1055,7 @@ OM_CHOP::processHotspots(vector<rapidjson::Document>& messages,
                 if (coords.Size() < 2)
                 {
                     SET_CHOP_WARN(msg << "Hotspots centers don't have enough data (at least "
-                                  "2 coordinates expected, but " << coords.Size() << " given");
+                                  "2 coordinates expected, but " << coords.Size() << " given")
                 }
                 else
                 {
@@ -1069,7 +1068,7 @@ OM_CHOP::processHotspots(vector<rapidjson::Document>& messages,
     }
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
-                      << OM_JSON_HOTSPOTS << " in received json messages");
+                      << OM_JSON_HOTSPOTS << " in received json messages")
 }
 
 void
@@ -1082,7 +1081,7 @@ OM_CHOP::processDtw(vector<rapidjson::Document>& messages,
     if (retireve(OM_JSON_DTW, messages, dtwdistances))
     {
         if (!dtwdistances.IsArray())
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_DTW << " is not an array");
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_DTW << " is not an array")
         else
         {
             rapidjson::Value arr = dtwdistances.GetArray();
@@ -1090,7 +1089,7 @@ OM_CHOP::processDtw(vector<rapidjson::Document>& messages,
             for (int i = 0; i < PAIRWISE_HEIGHT && arr.Size(); ++i)
             {
                 if (!arr[i].IsArray())
-                    SET_CHOP_WARN(msg << "JSON format error: array expected as element of " << OM_JSON_DTW);
+                    SET_CHOP_WARN(msg << "JSON format error: array expected as element of " << OM_JSON_DTW)
                 else
                 {
                     bool hasRow = (i < arr.Size());
@@ -1120,12 +1119,12 @@ OM_CHOP::processDtw(vector<rapidjson::Document>& messages,
             }
             
             if (arr.Size() == 0)
-                SET_CHOP_WARN(msg << "Dtw array is empty");
+                SET_CHOP_WARN(msg << "Dtw array is empty")
         }
     }
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
-                      << OM_JSON_DTW << " in received json messages");
+                      << OM_JSON_DTW << " in received json messages")
 }
 
 void
@@ -1139,28 +1138,28 @@ OM_CHOP::processGroupTarget(vector<rapidjson::Document> &messages,
         {
             if (!eigenVals.IsArray())
                 SET_CHOP_WARN(msg << "JSON format error: "
-                              << OM_JSON_PCA1 << " it not an array");
+                              << OM_JSON_PCA1 << " it not an array")
             else
             {
                 rapidjson::Value arr = eigenVals.GetArray();
                 
                 if (arr.Size() != 2)
                     SET_CHOP_WARN(msg << "JSON format error: "
-                                  << OM_JSON_PCA1 << " expected 2 elements in the array");
+                                  << OM_JSON_PCA1 << " expected 2 elements in the array")
                 else
                 {
                     groupTarget.push_back(vector<float>(arr[0].GetFloat()));
                     
                     if (!arr[1].IsArray())
                         SET_CHOP_WARN(msg << "JSON format errors: "
-                                      << OM_JSON_PCA1 << " second element must be a vector");
+                                      << OM_JSON_PCA1 << " second element must be a vector")
                     else
                     {
                         const rapidjson::Value& v = arr[1].GetArray();
                         
                         if (v.Size() != 3)
                             SET_CHOP_WARN(msg << "JSON format error: "
-                                          << OM_JSON_PCA1 << " expected to have 3 elements for eigen  vector");
+                                          << OM_JSON_PCA1 << " expected to have 3 elements for eigen  vector")
                         else
                         {
                             groupTarget[0].push_back(v[0].GetFloat());
@@ -1172,7 +1171,7 @@ OM_CHOP::processGroupTarget(vector<rapidjson::Document> &messages,
             }
         }
         else
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PCA1 << " not found");
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PCA1 << " not found")
     }
     {
         rapidjson::Value eigenVals;
@@ -1181,28 +1180,28 @@ OM_CHOP::processGroupTarget(vector<rapidjson::Document> &messages,
         {
             if (!eigenVals.IsArray())
                 SET_CHOP_WARN(msg << "JSON format error: "
-                              << OM_JSON_PCA2 << " it not an array");
+                              << OM_JSON_PCA2 << " it not an array")
             else
             {
                 rapidjson::Value arr = eigenVals.GetArray();
                 
                 if (arr.Size() != 2)
                     SET_CHOP_WARN(msg << "JSON format error: "
-                                  << OM_JSON_PCA2 << " expected 2 elements in the array");
+                                  << OM_JSON_PCA2 << " expected 2 elements in the array")
                 else
                 {
                     groupTarget.push_back(vector<float>(arr[0].GetFloat()));
                     
                     if (!arr[1].IsArray())
                         SET_CHOP_WARN(msg << "JSON format errors: "
-                                      << OM_JSON_PCA2 << " second element must be a vector");
+                                      << OM_JSON_PCA2 << " second element must be a vector")
                     else
                     {
                         const rapidjson::Value& v = arr[1].GetArray();
                         
                         if (v.Size() != 3)
                             SET_CHOP_WARN(msg << "JSON format error: "
-                                          << OM_JSON_PCA2 << " expected to have 3 elements for eigen  vector");
+                                          << OM_JSON_PCA2 << " expected to have 3 elements for eigen  vector")
                         else
                         {
                             groupTarget[1].push_back(v[0].GetFloat());
@@ -1214,7 +1213,7 @@ OM_CHOP::processGroupTarget(vector<rapidjson::Document> &messages,
             }
         }
         else
-            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PCA2 << " not found");
+            SET_CHOP_WARN(msg << "JSON format error: " << OM_JSON_PCA2 << " not found")
     }
 }
 
