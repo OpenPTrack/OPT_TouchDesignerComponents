@@ -95,6 +95,7 @@
 			isa = PBXGroup;
 			children = (
 				AF7DCA52204EDC6800B54885 /* debug.h */,
+				AF7DCA51204EDBB800B54885 /* defines.h */,
 				AFA994CA204A0DDC00B04C98 /* CHOP_CPlusPlusBase.h */,
 				AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */,
 				AFA994CD204A0DF500B04C98 /* OPT_CHOP.cpp */,
@@ -104,7 +105,6 @@
 				AFA994D2204B547F00B04C98 /* OM_CHOP.hpp */,
 				AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */,
 				AFA994E3204CF63B00B04C98 /* JsonSocketReader.hpp */,
-				AF7DCA51204EDBB800B54885 /* defines.h */,
 			);
 			name = CHOP;
 			sourceTree = "<group>";

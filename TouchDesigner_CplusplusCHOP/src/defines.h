@@ -9,6 +9,8 @@
 #ifndef defines_h
 #define defines_h
 
+#define OM_JSON_HEADER          "header"
+#define OM_JSON_SEQ             "seq"
 #define OM_JSON_IDORDER         "idorder"
 #define OM_JSON_ALIVEIDS        "aliveIDs"
 

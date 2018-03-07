@@ -505,17 +505,24 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
 int32_t
 OM_CHOP::getNumInfoCHOPChans()
 {
-    return 1; // aliveIds num
+    return 2; // aliveIds num
 }
 
 void
 OM_CHOP::getInfoCHOPChan(int32_t index,
                           OP_InfoCHOPChan* chan)
 {
-    if (index == 0)
-    {
-        chan->name = "aliveIds";
-        chan->value = (float)nAliveIds_;
+    switch (index) {
+        case 0:
+            chan->name = "aliveIds";
+            chan->value = (float)nAliveIds_;
+            break;
+        case 1:
+            chan->name = "seq";
+            chan->value = (float)seq_;
+            break;
+        default:
+            break;
     }
 }
 
@@ -632,15 +639,17 @@ OM_CHOP::processQueue()
     {
         int seqNo = -1;
         
-        if (documentQueue_.front().HasMember("seq"))
-            seqNo = documentQueue_.front()["seq"].GetInt();
-        else if (documentQueue_.front().HasMember("header") &&
-                 documentQueue_.front()["header"].HasMember("seq"))
+        if (documentQueue_.front().HasMember(OM_JSON_SEQ))
+            seqNo = documentQueue_.front()[OM_JSON_SEQ].GetInt();
+        else if (documentQueue_.front().HasMember(OM_JSON_HEADER) &&
+                 documentQueue_.front()[OM_JSON_HEADER].HasMember(OM_JSON_SEQ))
         {
-            seqNo = documentQueue_.front()["header"]["seq"].GetInt();
+            seqNo = documentQueue_.front()[OM_JSON_HEADER][OM_JSON_SEQ].GetInt();
         }
         else
             SET_CHOP_WARN(msg << "Bad json formatting: can't locate 'seq' field")
+        
+        seq_ = seqNo;
         
         if (seqNo >= 0)
         {
@@ -799,6 +808,7 @@ OM_CHOP::processIdOrder(vector<rapidjson::Document>& messages,
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
                       << OM_JSON_ALIVEIDS << " in received json messages")
     
+        
 #ifdef PRINT_IDS
     cout << "filtered ids: ";
     for (auto id:idOrder)
