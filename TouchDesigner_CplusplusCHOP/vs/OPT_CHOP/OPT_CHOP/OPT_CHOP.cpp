@@ -50,7 +50,7 @@ errexpr; \
 warningMessage_ = msg.str(); \
 }
 
-#define PRINT_MSG
+//#define PRINT_MSG
 
 #define PORT 21234
 

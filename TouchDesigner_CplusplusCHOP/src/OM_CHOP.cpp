@@ -55,7 +55,7 @@
 using namespace std;
 using namespace chrono;
 
-static const char* DerOutNames[6] = { "id", "d1x", "d1y", "d2x", "d2y", "speed"};
+static const char* DerOutNames[7] = { "id", "d1x", "d1y", "d2x", "d2y", "speed", "accel"};
 static const char* StageDistNames[5] = { "id", "us", "ds", "sl", "sr"};
 static const char* ClusterOutNames[3] = { "x", "y", "spread"};
 static const char* HotspotsOutNames[3] = { "x", "y", "spread"};
@@ -175,7 +175,7 @@ bool OM_CHOP::getOutputInfo(CHOP_OutputInfo * info)
     
     switch (outChoice_) {
         case Derivatives:
-            info->numChannels = 6; // id speed d1x d1y d2x d2y
+            info->numChannels = 7; // id d1x d1y d2x d2y speed acceleration
             break;
         case Pairwise: // fallthrough
         case Dtw:
@@ -260,7 +260,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
         vector<int> idOrder;
         map<int, pair<float,float>> derivatives1;
         map<int, pair<float,float>> derivatives2;
-        map<int, float> speeds;
+        map<int, float> speeds, accelerations;
         map<int, vector<float>> dwtDistances;
         vector<vector<float>> clusters;
         map<int, vector<float>> stageDistances;
@@ -291,7 +291,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
 #endif
                     
                     processMessages(msgs, idOrder,
-                                    derivatives1, derivatives2, speeds,
+                                    derivatives1, derivatives2, speeds, accelerations,
                                     pairwiseMat_,
                                     clusters,
                                     stageDistances,
@@ -378,8 +378,23 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     else
                     {
                         long sampleIdx = it-idOrder.begin();
-                        
                         output->channels[5][sampleIdx] = pair.second;
+                    }
+                }
+                for (auto pair:accelerations)
+                {
+                    int id = pair.first;
+                    vector<int>::iterator it = find(idOrder.begin(), idOrder.end(), id);
+                    
+                    if (it == idOrder.end())
+                    {
+                        SET_CHOP_WARN(msg << "Acceleration id (" << id << ") was not found in available id"
+                                      " list. Message bundle: " << bundleStr)
+                    }
+                    else
+                    {
+                        long sampleIdx = it-idOrder.begin();
+                        output->channels[6][sampleIdx] = pair.second;
                     }
                 }
             }
@@ -658,6 +673,7 @@ OM_CHOP::processMessages(vector<rapidjson::Document>& messages,
                          map<int, pair<float,float>>& derivatives1,
                          map<int, pair<float,float>>& derivatives2,
                          map<int, float>& speeds,
+                         map<int, float>& accelerations,
                          float* pairwiseMatrix,
                          vector<vector<float>>& clustersData,
                          map<int, vector<float>>& stageDistances,
@@ -667,7 +683,7 @@ OM_CHOP::processMessages(vector<rapidjson::Document>& messages,
                          map<string, vector<float>>& templates)
 {
     processIdOrder(messages, idOrder);
-    processDerivatives(messages, idOrder, derivatives1, derivatives2, speeds);
+    processDerivatives(messages, idOrder, derivatives1, derivatives2, speeds, accelerations);
     processPairwise(messages, idOrder, pairwiseMatrix);
     processClusters(messages, clustersData);
     processDtw(messages, idOrder, dtwMatrix);
@@ -796,7 +812,8 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
                             vector<int>& idOrder,
                             map<int, pair<float,float>>& derivatives1,
                             map<int, pair<float,float>>& derivatives2,
-                            map<int, float>& speed)
+                            map<int, float>& speed,
+                            map<int, float>& acceleration)
 { // retrieving derivatives
     rapidjson::Value firstDirs;
     if (retireve(OM_JSON_FIRSTDERS, messages, firstDirs))
@@ -867,15 +884,43 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
             }
         }
     }
+
+    
+    rapidjson::Value accels;
+    if (retireve(OM_JSON_ACCELERATIONS, messages, accels))
+    {
+        if (!accels.IsArray())
+            SET_CHOP_WARN(msg << "JSON format error: '" << OM_JSON_ACCELERATIONS << "' is expected to be an array")
+        else
+        {
+            const rapidjson::Value& arr = accels.GetArray();
+            for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
+            {
+                int id = idOrder[i];
+                acceleration[id] = arr[i].GetFloat();
+            }
+        }
+    }
     
 #ifdef PRINT_DERIVATIVES
     cout << "derivatives1: " << endl;
     for (auto v:derivatives1)
-        cout << "id " << v.first << " dx " << v.second.first << " dy " << v.second.second << endl;
-    
-    cout << "derivatives2: " << endl;
-    for (auto v:derivatives2)
-        cout << "id " << v.first << " dx " << v.second.first << " dy " << v.second.second << endl;
+    {
+        cout << "id " << v.first << " d1x " << v.second.first << " d1y " << v.second.second;
+        
+        if (derivatives2.find(v.first) != derivatives2.end())
+            cout << " d2x " << derivatives2[v.first].first << " d2y " << derivatives2[v.first].second;
+        else
+            cout << " no d2 data ";
+        if (speed.find(v.first) != speed.end())
+            cout << " speed " << speed[v.first];
+        else
+            cout <<  " no speed data ";
+        if (acceleration.find(v.first) != acceleration.end())
+            cout << " accel " << acceleration[v.first] << endl;
+        else
+            cout << " no acceleration data " << endl;
+    }
 #endif
 }
 

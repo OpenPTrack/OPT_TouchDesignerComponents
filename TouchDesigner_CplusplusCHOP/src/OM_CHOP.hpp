@@ -118,6 +118,7 @@ private:
                          std::map<int, std::pair<float,float>>& derivatives1,
                          std::map<int, std::pair<float,float>>& derivatives2,
                          std::map<int, float>& speeds,
+                         std::map<int, float>& accelerations,
                          float* pairwiseMatrix,
                          std::vector<std::vector<float>>& clustersData,
                          std::map<int, std::vector<float>>& stageDistances,
@@ -131,7 +132,8 @@ private:
                             std::vector<int>& idOrder,
                             std::map<int, std::pair<float,float>>& derivatives1,
                             std::map<int, std::pair<float,float>>& derivatives2,
-                            std::map<int, float>& speeds);
+                            std::map<int, float>& speeds,
+                            std::map<int, float>& accelerations);
     void processPairwise(std::vector<rapidjson::Document>& messages,
                          std::vector<int>& idOrder,
                          float* pairwiseMatrix);
