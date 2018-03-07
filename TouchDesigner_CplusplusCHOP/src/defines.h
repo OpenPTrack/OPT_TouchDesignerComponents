@@ -17,7 +17,7 @@
 #define OM_JSON_FIRSTDERS       "firstdirs"
 #define OM_JSON_SECONDDERS      "seconddirs"
 #define OM_JSON_SPEEDS          "speeds"
-#define OM_JSON_ACCELERATIONS   "accelerations"
+#define OM_JSON_ACCELERATIONS   "accel"
 
 #define OM_JSON_PAIRWISE        "pairwise"
 #define OM_JSON_CLUSTERCENTERS  "clustercenters"
