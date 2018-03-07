@@ -1051,17 +1051,22 @@ OM_CHOP::processHotspots(vector<rapidjson::Document>& messages,
             
             for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
             {
-                rapidjson::Value coords = arr[i].GetArray();
-                if (coords.Size() < 2)
-                {
-                    SET_CHOP_WARN(msg << "Hotspots centers don't have enough data (at least "
-                                  "2 coordinates expected, but " << coords.Size() << " given")
-                }
+                if (!arr[i].IsArray())
+                    SET_CHOP_WARN(msg << "JSON format error: Hotspots elements are expected to be arrays")
                 else
                 {
-                    hotspotsData.push_back(vector<float>({ coords[0].GetFloat(), coords[1].GetFloat()}));
-                    if (coords.Size() >= 3)
-                        hotspotsData.back().push_back(coords[2].GetFloat());
+                    rapidjson::Value coords = arr[i].GetArray();
+                    if (coords.Size() < 2)
+                    {
+                        SET_CHOP_WARN(msg << "Hotspots centers don't have enough data (at least "
+                                      "2 coordinates expected, but " << coords.Size() << " given")
+                    }
+                    else
+                    {
+                        hotspotsData.push_back(vector<float>({ coords[0].GetFloat(), coords[1].GetFloat()}));
+                        if (coords.Size() >= 3)
+                            hotspotsData.back().push_back(coords[2].GetFloat());
+                    }
                 }
             }
         }
