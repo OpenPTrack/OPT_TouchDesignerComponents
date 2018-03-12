@@ -15,5 +15,6 @@
 //#define PRINT_DERIVATIVES
 //#define PRINT_PAIRWISE
 //#define PRINT_CLUSTERS
+//#define PRINT_BLANKRUN_TRIGGER
 
 #endif /* debug_h */

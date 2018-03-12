@@ -46,6 +46,7 @@
 #define MESSAGE_QUEUE_THRESHOLD 500
 #define MESSAGE_LIFETIME_MS 2000
 #define OPENMOVES_MSG_BUNDLE 2
+#define BLANK_RUN_THRESHOLD 60
 
 #define PAIRWISE_MAXDIM 25
 #define PAIRWISE_WIDTH (PAIRWISE_MAXDIM+1)
@@ -84,14 +85,14 @@ static map<string, OM_CHOP::OutChoice> OutputMenuMap = {
 #define SET_CHOP_ERROR(errexpr) {\
 stringstream msg; \
 errexpr; \
-errorMessage_ = msg.str(); \
+if (errorMessage_ == "") errorMessage_ = msg.str(); \
 printf("%s\n", msg.str().c_str());\
 }
 
 #define SET_CHOP_WARN(errexpr) {\
 stringstream msg; \
 errexpr; \
-warningMessage_ = msg.str(); \
+if (warningMessage_ == "") warningMessage_ = msg.str(); \
 }
 
 //Required functions.
@@ -144,7 +145,8 @@ string bundleToString(const vector<rapidjson::Document>& bundle)
 //******************************************************************************
 OM_CHOP::OM_CHOP(const OP_NodeInfo * info):
 errorMessage_(""), warningMessage_(""),
-outChoice_(Derivatives)
+outChoice_(Derivatives),
+nAliveIds_(0),nClusters_(0)
 {
     pairwiseMat_ = (float*)malloc(PAIRWISE_SIZE*sizeof(float));
     dtwMat_ = (float*)malloc(PAIRWISE_SIZE*sizeof(float));
@@ -250,14 +252,18 @@ const char* OM_CHOP::getChannelName(int index, void* reserved)
 
 void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserved)
 {
+    warningMessage_ = "";
+    errorMessage_ = "";
+    
     double nowTs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     
     checkInputs(output, inputs, reserved);
     processQueue();
+    vector<int> idOrder;
+    bool blankRun = true;
     
     {
         string bundleStr;
-        vector<int> idOrder;
         map<int, pair<float,float>> derivatives1;
         map<int, pair<float,float>> derivatives2;
         map<int, float> speeds, accelerations;
@@ -307,6 +313,11 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     }
                     
                     messages_.erase(it++);
+
+                    
+                    blankRun = false;
+                    nClusters_ = clusters.size();
+                    seq_ = (*it).first;
                     
                     break; // we're done here
                 } // if messages bundle
@@ -507,12 +518,23 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                 break;
         }
     }
+    
+    if (blankRun)
+    {
+        nBlankRuns_++;
+        if (nBlankRuns_ >= BLANK_RUN_THRESHOLD)
+            blankRunsTrigger();
+    }
+    else
+        nBlankRuns_ = 0;
+    
+    lastAliveIds_ = idOrder;
 }
 
 int32_t
 OM_CHOP::getNumInfoCHOPChans()
 {
-    return 2; // aliveIds num
+    return 3; // aliveIds seq numClusters_
 }
 
 void
@@ -527,6 +549,10 @@ OM_CHOP::getInfoCHOPChan(int32_t index,
         case 1:
             chan->name = "seq";
             chan->value = (float)seq_;
+            break;
+        case 2:
+            chan->name = "nClusters";
+            chan->value = (float)nClusters_;
             break;
         default:
             break;
@@ -656,8 +682,6 @@ OM_CHOP::processQueue()
         else
             SET_CHOP_WARN(msg << "Bad json formatting: can't locate 'seq' field")
         
-        seq_ = seqNo;
-        
         if (seqNo >= 0)
         {
             if (messages_.find(seqNo) == messages_.end())
@@ -665,7 +689,7 @@ OM_CHOP::processQueue()
             
             messages_[seqNo].second.push_back(move(documentQueue_.front()));
         }
-        
+    
         documentQueue_.pop();
 #ifdef PRINT_MSG_QUEUE
         float avgBundleLen = 0;
@@ -819,7 +843,6 @@ OM_CHOP::processIdOrder(vector<rapidjson::Document>& messages,
     else
         SET_CHOP_WARN(msg << "JSON format error: couldn't find field "
                       << OM_JSON_ALIVEIDS << " in received json messages")
-    
         
 #ifdef PRINT_IDS
     cout << "filtered ids: ";
@@ -849,7 +872,7 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
             for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
             {
                 if (i >= idOrder.size())
-                    SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
+                    SET_CHOP_WARN(msg << "Derivatives: Can't find id " << i << " in " << OM_JSON_IDORDER << " list")
                 {
                     int id = idOrder[i];
                     derivatives1[id] = pair<float, float>(0,0);
@@ -880,7 +903,7 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
             for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
             {
                 if (i >= idOrder.size())
-                    SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
+                    SET_CHOP_WARN(msg << "SecondDirs: Can't find id " << i << " in " << OM_JSON_IDORDER << " list")
                 {
                     int id = idOrder[i];
                     derivatives2[id] = pair<float, float>(0,0);
@@ -910,7 +933,7 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
             for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
             {
                 if (i >= idOrder.size())
-                    SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
+                    SET_CHOP_WARN(msg << "Speeds: Can't find id " << i << " in " << OM_JSON_IDORDER << " list")
                 {
                     int id = idOrder[i];
                     speed[id] = arr[i].GetFloat();
@@ -931,7 +954,7 @@ OM_CHOP::processDerivatives(vector<rapidjson::Document>& messages,
             for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
             {
                 if (i >= idOrder.size())
-                    SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
+                    SET_CHOP_WARN(msg << "Accels: Can't find id " << i << " in " << OM_JSON_IDORDER << " list")
                 {
                     int id = idOrder[i];
                     acceleration[id] = arr[i].GetFloat();
@@ -994,7 +1017,7 @@ OM_CHOP::processPairwise(vector<rapidjson::Document>& messages,
                             pairwiseMatrix[i*PAIRWISE_WIDTH+j] = id;
                         }
                         else
-                            SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
+                            SET_CHOP_WARN(msg << "Pairwise: Can't find id " << i << " in " << OM_JSON_IDORDER << " list")
                     }
                     else
                     {
@@ -1063,8 +1086,11 @@ OM_CHOP::processClusters(vector<rapidjson::Document>& messages,
     
 #ifdef PRINT_CLUSTERS
     cout << "clusters: " << endl;
-    for (auto v:clustersData)
-        cout << "x " << v[0] << " y " << v[1] << " spread " << v[2] << endl;
+    if (clustersData.size() == 0)
+        cout << "EMPTY" << endl;
+    else
+        for (auto v:clustersData)
+            cout << "x " << v[0] << " y " << v[1] << " spread " << v[2] << endl;
 #endif
 }
 
@@ -1084,7 +1110,7 @@ OM_CHOP::processStageDistances(vector<rapidjson::Document>& messages,
             for (rapidjson::SizeType i = 0; i < arr.Size(); i++)
             {
                 if (i >= idOrder.size())
-                    SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
+                    SET_CHOP_WARN(msg << "Stagedist: Can't find id " << i << " in " << OM_JSON_IDORDER << " list")
                 else
                 {
                     int id = idOrder[i];
@@ -1204,7 +1230,7 @@ OM_CHOP::processDtw(vector<rapidjson::Document>& messages,
                                 dtwMatrix[i*PAIRWISE_WIDTH+j] = id;
                             }
                             else
-                                SET_CHOP_WARN(msg << "Can't find id in " << OM_JSON_IDORDER << " list")
+                                SET_CHOP_WARN(msg << "Dtw: Can't find id " << i << " in " << OM_JSON_IDORDER << " list")
                         }
                         else
                         {
@@ -1320,4 +1346,13 @@ OM_CHOP::processTemplates(vector<rapidjson::Document> &messages,
                           vector<int> &idOrder, map<string, vector<float> > &templates)
 {
     
+}
+
+void
+OM_CHOP::blankRunsTrigger()
+{
+    nClusters_ = 0;
+#ifdef PRINT_BLANKRUN_TRIGGER
+    cout << "Blank run!" << endl;
+#endif
 }

@@ -93,8 +93,9 @@ private:
     const OP_NodeInfo *myNodeInfo;
     
     int seq_;
-    uint64_t nAliveIds_;
+    uint64_t nAliveIds_, nBlankRuns_, nClusters_;
     float *pairwiseMat_, *dtwMat_;
+    std::vector<int> lastAliveIds_;
     
     void setupSocketReader();
     
@@ -158,9 +159,7 @@ private:
                   rapidjson::Value&);
     
     void checkInputs(const CHOP_Output *, OP_Inputs *inputs, void *);
+    void blankRunsTrigger();
 };
-
-
-
 
 #endif /* OM_CHOP_hpp */
