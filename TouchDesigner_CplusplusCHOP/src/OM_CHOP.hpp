@@ -42,6 +42,7 @@ public:
         Pairwise,
         Dtw,
         Cluster,
+        ClusterIds,
         Hotspots,
         Pca,
         Stagedist,

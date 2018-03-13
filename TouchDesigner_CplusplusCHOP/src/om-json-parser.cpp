@@ -101,7 +101,7 @@ OmJsonParser::parse(vector<rapidjson::Document> &messages,
                     break;
             case Cluster:
             {
-                    processClusters(messages, clustersData_);
+                    processClusters(messages, clustersData_, clusterIds_);
             }
                 if (st != All)
                     break;
@@ -224,7 +224,8 @@ OmJsonParser::processDistances(std::vector<rapidjson::Document>& messages,
 
 void
 OmJsonParser::processClusters(std::vector<rapidjson::Document> &messages,
-                              std::vector<std::vector<float> > &clustersData)
+                              std::vector<std::vector<float> > &clustersData,
+                              std::vector<std::vector<float>>& clusterIds)
 {
     rapidjson::Value values;
     if (retireve(OM_JSON_VALUES, messages, values))
@@ -248,9 +249,61 @@ OmJsonParser::processClusters(std::vector<rapidjson::Document> &messages,
                 }
             }
         }
+        
+        if (values.HasMember(OM_JSON_CLUSTER_POINTS) && values[OM_JSON_CLUSTER_POINTS].IsArray())
+        {
+            const rapidjson::Value& clusters = values[OM_JSON_CLUSTER_POINTS].GetArray();
+            
+            for (rapidjson::SizeType i = 0; i < clusters.Size(); ++i)
+            {
+                if (!clusters[i].IsArray())
+                    SET_ERR_MSG("cluster array element is not a list")
+                else
+                {
+                    const rapidjson::Value::ConstArray& cluster = clusters[i].GetArray();
+                    clusterIds.push_back(vector<float>());
+                    
+                    for (rapidjson::SizeType k = 0; k < cluster.Size(); ++k)
+                    {
+                        if (!cluster[k].IsArray())
+                            SET_ERR_MSG("cluster point is not a list")
+                        else
+                        {
+                            const rapidjson::Value::ConstArray& clusterPoint = cluster[k].GetArray();
+                            
+                            if (clusterPoint.Size() < 3)
+                                SET_ERR_MSG("cluster point list size is less than 3 (expected)")
+                            else
+                            {
+                                for (int idx = 0; idx < 3; ++idx)
+                                {
+                                    float val = 0;
+                                    if (!(clusterPoint[idx].IsFloat() || clusterPoint[idx].IsInt()))
+                                        SET_ERR_MSG("cluster point contains elements other than float type")
+                                    else
+                                        val = clusterPoint[idx].GetFloat();
+                                    clusterIds.back().push_back(val);
+                                }
+                            }
+                        } // cluster point is array
+                    } // for k
+                } // else cluster is array
+            } // for i
+        } // if has cluster field
+        else
+            SET_ERR_MSG(OM_JSON_CLUSTER_POINTS << " element not found or is not a list")
     }
     else
         SET_ERR_MSG("clusters subtype; can't find " << OM_JSON_VALUES)
+        
+#ifdef PRINT_CLUSTERS
+    cout << "clusters: " << endl;
+    if (clustersData.size() == 0)
+        cout << "EMPTY" << endl;
+    else
+        for (auto v:clustersData)
+            cout << "x " << v[0] << " y " << v[1] << " spread " << v[2] << endl;
+#endif
 }
 
 void
@@ -617,6 +670,7 @@ OmJsonParser::clearAll()
     accelerations_.clear();
     stageDistances_.clear();
     clustersData_.clear();
+    clusterIds_.clear();
     hotspotsData_.clear();
     groupTarget_.clear();
     templatesData_.clear();
