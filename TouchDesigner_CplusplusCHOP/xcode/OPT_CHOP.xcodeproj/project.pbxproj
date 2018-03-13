@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AF36345D205744FB00D547E6 /* om-json-parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF36345B205744FB00D547E6 /* om-json-parser.cpp */; };
 		AFA994CE204A0DF500B04C98 /* OPT_CHOP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFA994CD204A0DF500B04C98 /* OPT_CHOP.cpp */; };
 		AFA994D0204A184100B04C98 /* OPT_CHOP.plugin in CopyFiles */ = {isa = PBXBuildFile; fileRef = E23329D61DF092AD0002B4FE /* OPT_CHOP.plugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		AFA994D7204B54E100B04C98 /* OM_CHOP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */; };
@@ -39,6 +40,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AF36345B205744FB00D547E6 /* om-json-parser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "om-json-parser.cpp"; path = "../src/om-json-parser.cpp"; sourceTree = "<group>"; };
+		AF36345C205744FB00D547E6 /* om-json-parser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = "om-json-parser.hpp"; path = "../src/om-json-parser.hpp"; sourceTree = "<group>"; };
 		AF7DCA51204EDBB800B54885 /* defines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = defines.h; path = ../src/defines.h; sourceTree = "<group>"; };
 		AF7DCA52204EDC6800B54885 /* debug.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = debug.h; path = ../src/debug.h; sourceTree = "<group>"; };
 		AFA994CA204A0DDC00B04C98 /* CHOP_CPlusPlusBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CHOP_CPlusPlusBase.h; path = ../vs/OPT_CHOP/OPT_CHOP/CHOP_CPlusPlusBase.h; sourceTree = "<group>"; };
@@ -73,6 +76,48 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		AF36345E2057450300D547E6 /* om json parser */ = {
+			isa = PBXGroup;
+			children = (
+				AF36345B205744FB00D547E6 /* om-json-parser.cpp */,
+				AF36345C205744FB00D547E6 /* om-json-parser.hpp */,
+			);
+			name = "om json parser";
+			sourceTree = "<group>";
+		};
+		AF36345F2057451500D547E6 /* common */ = {
+			isa = PBXGroup;
+			children = (
+				AFA994CA204A0DDC00B04C98 /* CHOP_CPlusPlusBase.h */,
+				AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */,
+			);
+			name = common;
+			sourceTree = "<group>";
+		};
+		AF3634602057451F00D547E6 /* opt */ = {
+			isa = PBXGroup;
+			children = (
+				AFA994CD204A0DF500B04C98 /* OPT_CHOP.cpp */,
+				AFA994CC204A0DF500B04C98 /* OPT_CHOP.h */,
+				E23329D91DF092AD0002B4FE /* Info.plist */,
+			);
+			name = opt;
+			sourceTree = "<group>";
+		};
+		AF3634612057452B00D547E6 /* om */ = {
+			isa = PBXGroup;
+			children = (
+				AF36345E2057450300D547E6 /* om json parser */,
+				AF7DCA52204EDC6800B54885 /* debug.h */,
+				AF7DCA51204EDBB800B54885 /* defines.h */,
+				AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */,
+				AFA994D2204B547F00B04C98 /* OM_CHOP.hpp */,
+				AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */,
+				AFA994E3204CF63B00B04C98 /* JsonSocketReader.hpp */,
+			);
+			name = om;
+			sourceTree = "<group>";
+		};
 		E23329CD1DF092AD0002B4FE = {
 			isa = PBXGroup;
 			children = (
@@ -94,17 +139,9 @@
 		E23329F11DF1D64A0002B4FE /* CHOP */ = {
 			isa = PBXGroup;
 			children = (
-				AF7DCA52204EDC6800B54885 /* debug.h */,
-				AF7DCA51204EDBB800B54885 /* defines.h */,
-				AFA994CA204A0DDC00B04C98 /* CHOP_CPlusPlusBase.h */,
-				AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */,
-				AFA994CD204A0DF500B04C98 /* OPT_CHOP.cpp */,
-				AFA994CC204A0DF500B04C98 /* OPT_CHOP.h */,
-				E23329D91DF092AD0002B4FE /* Info.plist */,
-				AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */,
-				AFA994D2204B547F00B04C98 /* OM_CHOP.hpp */,
-				AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */,
-				AFA994E3204CF63B00B04C98 /* JsonSocketReader.hpp */,
+				AF36345F2057451500D547E6 /* common */,
+				AF3634612057452B00D547E6 /* om */,
+				AF3634602057451F00D547E6 /* opt */,
 			);
 			name = CHOP;
 			sourceTree = "<group>";
@@ -205,6 +242,7 @@
 			files = (
 				AFA994D7204B54E100B04C98 /* OM_CHOP.cpp in Sources */,
 				AFA994E5204CF63B00B04C98 /* JsonSocketReader.cpp in Sources */,
+				AF36345D205744FB00D547E6 /* om-json-parser.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

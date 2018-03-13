@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <chrono>
 
+#include "om-json-parser.hpp"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "defines.h"
@@ -41,7 +42,7 @@
     #define OM_CHOP_API DLLEXPORT
 #endif
 
-#define PORTNUM 21235
+#define PORTNUM 21236
 
 #define MESSAGE_QUEUE_THRESHOLD 500
 #define MESSAGE_LIFETIME_MS 2000
@@ -80,6 +81,18 @@ static map<string, OM_CHOP::OutChoice> OutputMenuMap = {
     { "Pca", OM_CHOP::OutChoice::Pca },
     { "Stagedist", OM_CHOP::OutChoice::Stagedist },
     { "Templates", OM_CHOP::OutChoice::Templates }
+};
+
+static map<OM_CHOP::OutChoice, string> OutputSubtypeMap = {
+    { OM_CHOP::OutChoice::Unknown, "all" },
+    { OM_CHOP::OutChoice::Derivatives, OM_JSON_SUBTYPE_DERS },
+    { OM_CHOP::OutChoice::Pairwise, OM_JSON_SUBTYPE_DIST },
+    { OM_CHOP::OutChoice::Dtw, OM_JSON_SUBTYPE_SIM },
+    { OM_CHOP::OutChoice::Cluster, OM_JSON_SUBTYPE_CLUSTER },
+    { OM_CHOP::OutChoice::Hotspots, OM_JSON_SUBTYPE_MDYN },
+    { OM_CHOP::OutChoice::Pca, OM_JSON_SUBTYPE_MDYN },
+    { OM_CHOP::OutChoice::Stagedist, OM_JSON_SUBTYPE_DIST },
+    { OM_CHOP::OutChoice::Templates, OM_JSON_SUBTYPE_SIM }
 };
 
 #define SET_CHOP_ERROR(errexpr) {\
@@ -146,14 +159,9 @@ string bundleToString(const vector<rapidjson::Document>& bundle)
 OM_CHOP::OM_CHOP(const OP_NodeInfo * info):
 errorMessage_(""), warningMessage_(""),
 outChoice_(Derivatives),
-nAliveIds_(0),nClusters_(0)
+nAliveIds_(0),nClusters_(0),
+omJsonParser_(make_shared<OmJsonParser>(PAIRWISE_MAXDIM))
 {
-    pairwiseMat_ = (float*)malloc(PAIRWISE_SIZE*sizeof(float));
-    dtwMat_ = (float*)malloc(PAIRWISE_SIZE*sizeof(float));
-    
-    memset(pairwiseMat_, -1, PAIRWISE_SIZE);
-    memset(dtwMat_, -1, PAIRWISE_SIZE);
-    
     setupSocketReader();
 }
 
@@ -161,8 +169,6 @@ OM_CHOP::~OM_CHOP()
 {
     if (SocketReader)
         SocketReader->unregisterSlave(this);
-    
-    free(pairwiseMat_);
 }
 
 void OM_CHOP::getGeneralInfo(CHOP_GeneralInfo * ginfo)
@@ -259,20 +265,20 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
     
     checkInputs(output, inputs, reserved);
     processQueue();
-    vector<int> idOrder;
+//    vector<int> idOrder;
     bool blankRun = true;
     
     {
         string bundleStr;
-        map<int, pair<float,float>> derivatives1;
-        map<int, pair<float,float>> derivatives2;
-        map<int, float> speeds, accelerations;
-        map<int, vector<float>> dwtDistances;
-        vector<vector<float>> clusters;
-        map<int, vector<float>> stageDistances;
-        vector<vector<float>> hotspotsData;
-        vector<vector<float> > groupTarget;
-        map<string, vector<float>> templates;
+//        map<int, pair<float,float>> derivatives1;
+//        map<int, pair<float,float>> derivatives2;
+//        map<int, float> speeds, accelerations;
+//        map<int, vector<float>> dwtDistances;
+//        vector<vector<float>> clusters;
+//        map<int, vector<float>> stageDistances;
+//        vector<vector<float>> hotspotsData;
+//        vector<vector<float> > groupTarget;
+//        map<string, vector<float>> templates;
         
         if (!queueBusy_)
         {
@@ -300,23 +306,31 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                             cout << "got message: " << buffer.GetString() << endl;
                         }
 #endif
+                        string subtypeToParse = OutputSubtypeMap[outChoice_];
+                        set<string> parsedSubtypes;
+                        string errMsg;
                         
-                        processMessages(msgs, idOrder,
-                                        derivatives1, derivatives2, speeds, accelerations,
-                                        pairwiseMat_,
-                                        clusters,
-                                        stageDistances,
-                                        hotspotsData,
-                                        dtwMat_,
-                                        groupTarget,
-                                        templates);
+                        if (!omJsonParser_->parse(msgs, parsedSubtypes, subtypeToParse))
+                        {
+                            SET_CHOP_WARN(msg << "Failed to parse subtype " << subtypeToParse
+                                          << " due to error: " << errMsg)
+                        }
+//                        processMessages(msgs, idOrder,
+//                                        derivatives1, derivatives2, speeds, accelerations,
+//                                        pairwiseMat_,
+//                                        clusters,
+//                                        stageDistances,
+//                                        hotspotsData,
+//                                        dtwMat_,
+//                                        groupTarget,
+//                                        templates);
                     }
                     
                     messages_.erase(it++);
 
                     
                     blankRun = false;
-                    nClusters_ = clusters.size();
+                    nClusters_ = omJsonParser_->getClusters().size();
                     seq_ = (*it).first;
                     
                     break; // we're done here
@@ -340,13 +354,14 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
         switch (outChoice_) {
             case Derivatives:
             {
-                for (auto pair:derivatives1) // { id -> <dx,dy> }
+                for (auto pair:omJsonParser_->getD1()) // { id -> <dx,dy> }
                 {
                     int id = pair.first;
                     // get sample idx of this id
-                    vector<int>::iterator it = find(idOrder.begin(), idOrder.end(), id);
+                    vector<int>::const_iterator it = find(omJsonParser_->getIdOrder().begin(),
+                                                    omJsonParser_->getIdOrder().end(), id);
                     
-                    if (it == idOrder.end())
+                    if (it == omJsonParser_->getIdOrder().end())
                     {
                         SET_CHOP_WARN(msg << "1st Derivatives id (" << id << ") was not found in available id"
                                       " list. Message bundle: " << bundleStr)
@@ -354,7 +369,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     }
                     else
                     {
-                        long sampleIdx = it-idOrder.begin();
+                        long sampleIdx = it-omJsonParser_->getIdOrder().begin();
                         
                         output->channels[0][sampleIdx] = id;
                         output->channels[1][sampleIdx] = pair.second.first;
@@ -362,13 +377,14 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     }
                 }
                 
-                for (auto pair:derivatives2) // { id -> <dx,dy> }
+                for (auto pair:omJsonParser_->getD2()) // { id -> <dx,dy> }
                 {
                     int id = pair.first;
                     // get sample idx of this id
-                    vector<int>::iterator it = find(idOrder.begin(), idOrder.end(), id);
+                    vector<int>::const_iterator it = find(omJsonParser_->getIdOrder().begin(),
+                                                    omJsonParser_->getIdOrder().end(), id);
                     
-                    if (it == idOrder.end())
+                    if (it == omJsonParser_->getIdOrder().end())
                     {
                         SET_CHOP_WARN(msg << "2nd Derivatives id (" << id << ") was not found in available id"
                                       " list. Message bundle: " << bundleStr)
@@ -376,42 +392,44 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     }
                     else
                     {
-                        long sampleIdx = it-idOrder.begin();
+                        long sampleIdx = it-omJsonParser_->getIdOrder().begin();
                         
                         output->channels[3][sampleIdx] = pair.second.first;
                         output->channels[4][sampleIdx] = pair.second.second;
                     }
                 }
                 
-                for (auto pair:speeds)
+                for (auto pair:omJsonParser_->getSpeeds())
                 {
                     int id = pair.first;
-                    vector<int>::iterator it = find(idOrder.begin(), idOrder.end(), id);
+                    vector<int>::const_iterator it = find(omJsonParser_->getIdOrder().begin(),
+                                                    omJsonParser_->getIdOrder().end(), id);
                     
-                    if (it == idOrder.end())
+                    if (it == omJsonParser_->getIdOrder().end())
                     {
                         SET_CHOP_WARN(msg << "Speed id (" << id << ") was not found in available id"
                                       " list. Message bundle: " << bundleStr)
                     }
                     else
                     {
-                        long sampleIdx = it-idOrder.begin();
+                        long sampleIdx = it-omJsonParser_->getIdOrder().begin();
                         output->channels[5][sampleIdx] = pair.second;
                     }
                 }
-                for (auto pair:accelerations)
+                for (auto pair:omJsonParser_->getAccelerations())
                 {
                     int id = pair.first;
-                    vector<int>::iterator it = find(idOrder.begin(), idOrder.end(), id);
+                    vector<int>::const_iterator it = find(omJsonParser_->getIdOrder().begin(),
+                                                    omJsonParser_->getIdOrder().end(), id);
                     
-                    if (it == idOrder.end())
+                    if (it == omJsonParser_->getIdOrder().end())
                     {
                         SET_CHOP_WARN(msg << "Acceleration id (" << id << ") was not found in available id"
                                       " list. Message bundle: " << bundleStr)
                     }
                     else
                     {
-                        long sampleIdx = it-idOrder.begin();
+                        long sampleIdx = it-omJsonParser_->getIdOrder().begin();
                         output->channels[6][sampleIdx] = pair.second;
                     }
                 }
@@ -431,7 +449,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                 
                 for (int chanIdx = 0; chanIdx < output->numChannels; chanIdx++)
                     for (int sampleIdx = 0; sampleIdx < output->numSamples; sampleIdx++)
-                        output->channels[chanIdx][sampleIdx] = pairwiseMat_[chanIdx*PAIRWISE_WIDTH+sampleIdx];
+                        output->channels[chanIdx][sampleIdx] = omJsonParser_->getPairwiseMat()[chanIdx*PAIRWISE_WIDTH+sampleIdx];
             }
                 break;
             case Dtw:
@@ -443,29 +461,30 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
             {
                 for (int sampleIdx = 0; sampleIdx < output->numSamples; sampleIdx++)
                 {
-                    if (sampleIdx < clusters.size())
+                    if (sampleIdx < omJsonParser_->getClusters().size())
                     {
-                        output->channels[0][sampleIdx] = clusters[sampleIdx][0];
-                        output->channels[1][sampleIdx] = clusters[sampleIdx][1];
-                        output->channels[2][sampleIdx] = clusters[sampleIdx][2];
+                        output->channels[0][sampleIdx] = omJsonParser_->getClusters()[sampleIdx][0];
+                        output->channels[1][sampleIdx] = omJsonParser_->getClusters()[sampleIdx][1];
+                        output->channels[2][sampleIdx] = omJsonParser_->getClusters()[sampleIdx][2];
                     }
                 }
             }
                 break;
             case Stagedist:
             {
-                for (auto pair:stageDistances) // { id -> <dx,dy> }
+                for (auto pair:omJsonParser_->getStageDists()) // { id -> <dx,dy> }
                 {
                     int id = pair.first;
                     // get sample idx of this id
-                    vector<int>::iterator it = find(idOrder.begin(), idOrder.end(), id);
+                    vector<int>::const_iterator it = find(omJsonParser_->getIdOrder().begin(),
+                                                    omJsonParser_->getIdOrder().end(), id);
                     
-                    if (it == idOrder.end())
+                    if (it == omJsonParser_->getIdOrder().end())
                         SET_CHOP_WARN(msg << "stagedist id (" << id << ") was not found in available id"
                                       " list. Message bundle: " << bundleStr)
                     else
                     {
-                        long sampleIdx = it-idOrder.begin();
+                        long sampleIdx = it-omJsonParser_->getIdOrder().begin();
                         
                         if (pair.second.size() >= 4)
                         {
@@ -487,26 +506,26 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
             {
                 for (int sampleIdx = 0; sampleIdx < output->numSamples; sampleIdx++)
                 {
-                    if (sampleIdx < hotspotsData.size())
+                    if (sampleIdx < omJsonParser_->getHotspots().size())
                     {
-                        output->channels[0][sampleIdx] = hotspotsData[sampleIdx][0];
-                        output->channels[1][sampleIdx] = hotspotsData[sampleIdx][1];
-                        output->channels[2][sampleIdx] = hotspotsData[sampleIdx][2];
+                        output->channels[0][sampleIdx] = omJsonParser_->getHotspots()[sampleIdx][0];
+                        output->channels[1][sampleIdx] = omJsonParser_->getHotspots()[sampleIdx][1];
+                        output->channels[2][sampleIdx] = omJsonParser_->getHotspots()[sampleIdx][2];
                     }
                 }
             }
                 break;
             case Pca:
             {
-                assert(groupTarget.size() <= 2);
-                
-                int sampleIdx = 0;
-                for (auto v:groupTarget)
-                {
-                    for (int i = 0; i < v.size(); ++i)
-                        output->channels[i][sampleIdx] = v[i];
-                    sampleIdx++;
-                }
+//                assert(omJsonParser_->getGroupTarget().size() <= 2);
+//
+//                int sampleIdx = 0;
+//                for (auto v:omJsonParser_->getGroupTarget())
+//                {
+//                    for (int i = 0; i < v.size(); ++i)
+//                        output->channels[i][sampleIdx] = v[i];
+//                    sampleIdx++;
+//                }
             }
                 break;
             case Templates:
@@ -528,7 +547,9 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
     else
         nBlankRuns_ = 0;
     
-    lastAliveIds_ = idOrder;
+    copy(omJsonParser_->getIdOrder().begin(),
+         omJsonParser_->getIdOrder().end(),
+         back_inserter(lastAliveIds_));
 }
 
 int32_t
@@ -673,7 +694,7 @@ OM_CHOP::processQueue()
         int seqNo = -1;
         
         if (documentQueue_.front().HasMember(OM_JSON_SEQ))
-            seqNo = documentQueue_.front()[OM_JSON_SEQ].GetInt();
+            seqNo = documentQueue_.front()[OM_JSON_SEQ].GetInt(); // deprecated for v1
         else if (documentQueue_.front().HasMember(OM_JSON_HEADER) &&
                  documentQueue_.front()[OM_JSON_HEADER].HasMember(OM_JSON_SEQ))
         {
@@ -707,6 +728,7 @@ OM_CHOP::processQueue()
     }
 }
 
+/*
 void
 OM_CHOP::processMessages(vector<rapidjson::Document>& messages,
                          vector<int>& idOrder,
@@ -766,7 +788,7 @@ OM_CHOP::retireve(const string& key,
     
     return false;
 }
-
+*/
 void
 OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
 {
@@ -795,6 +817,7 @@ OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
     }
 }
 
+/*
 void
 OM_CHOP::processIdOrder(vector<rapidjson::Document>& messages,
                     vector<int>& idOrder)
@@ -1347,6 +1370,7 @@ OM_CHOP::processTemplates(vector<rapidjson::Document> &messages,
 {
     
 }
+*/
 
 void
 OM_CHOP::blankRunsTrigger()
