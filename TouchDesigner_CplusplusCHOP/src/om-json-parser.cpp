@@ -600,7 +600,7 @@ OmJsonParser::hasSubType(std::vector<rapidjson::Document> &messages,
                          std::string subType) const
 {
     for (auto& d:messages)
-        if (d.HasMember(OM_JSON_PACKET) and d[OM_JSON_PACKET].IsObject())
+        if (d.HasMember(OM_JSON_PACKET) && d[OM_JSON_PACKET].IsObject())
         {
             if (d[OM_JSON_PACKET].HasMember(OM_JSON_SUBTYPE))
             {
