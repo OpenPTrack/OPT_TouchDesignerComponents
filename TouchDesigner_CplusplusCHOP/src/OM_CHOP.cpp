@@ -46,7 +46,7 @@
 
 #define MESSAGE_QUEUE_THRESHOLD 500
 #define MESSAGE_LIFETIME_MS 2000
-#define OPENMOVES_MSG_BUNDLE 2
+#define OPENMOVES_MSG_BUNDLE 1
 #define BLANK_RUN_THRESHOLD 60
 
 #define PAIRWISE_MAXDIM 25
@@ -157,6 +157,7 @@ string bundleToString(const vector<rapidjson::Document>& bundle)
 
 //******************************************************************************
 OM_CHOP::OM_CHOP(const OP_NodeInfo * info):
+seq_(0),
 errorMessage_(""), warningMessage_(""),
 outChoice_(Derivatives),
 nAliveIds_(0),nClusters_(0),
@@ -315,15 +316,6 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                             SET_CHOP_WARN(msg << "Failed to parse subtype " << subtypeToParse
                                           << " due to error: " << errMsg)
                         }
-//                        processMessages(msgs, idOrder,
-//                                        derivatives1, derivatives2, speeds, accelerations,
-//                                        pairwiseMat_,
-//                                        clusters,
-//                                        stageDistances,
-//                                        hotspotsData,
-//                                        dtwMat_,
-//                                        groupTarget,
-//                                        templates);
                     }
                     
                     messages_.erase(it++);
@@ -372,8 +364,8 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                         long sampleIdx = it-omJsonParser_->getIdOrder().begin();
                         
                         output->channels[0][sampleIdx] = id;
-                        output->channels[1][sampleIdx] = pair.second.first;
-                        output->channels[2][sampleIdx] = pair.second.second;
+                        output->channels[1][sampleIdx] = pair.second[0];
+                        output->channels[2][sampleIdx] = pair.second[1];
                     }
                 }
                 
@@ -394,8 +386,8 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     {
                         long sampleIdx = it-omJsonParser_->getIdOrder().begin();
                         
-                        output->channels[3][sampleIdx] = pair.second.first;
-                        output->channels[4][sampleIdx] = pair.second.second;
+                        output->channels[3][sampleIdx] = pair.second[0];
+                        output->channels[4][sampleIdx] = pair.second[1];
                     }
                 }
                 

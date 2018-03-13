@@ -20,6 +20,15 @@
 
 class OmJsonParser {
 public:
+    typedef enum _PacketSubtype {
+        All,
+        Derivatives,
+        Distance,
+        Cluster,
+        Massdyn,
+        Similarity
+    } PacketSubtype;
+    
     OmJsonParser(int maxMatSize);
     ~OmJsonParser();
     
@@ -31,8 +40,8 @@ public:
     const bool getParseResult() const { return parseResult_; }
     
     const std::vector<int>& getIdOrder() const { return idOrder_; }
-    const std::map<int, std::pair<float,float>>& getD1() const { return derivatives1_; }
-    const std::map<int, std::pair<float,float>>& getD2() const { return derivatives2_; }
+    const std::map<int, std::vector<float>>& getD1() const { return derivatives1_; }
+    const std::map<int, std::vector<float>>& getD2() const { return derivatives2_; }
     const std::map<int, float>& getSpeeds() const { return speeds_; }
     const std::map<int, float>& getAccelerations() const { return accelerations_; }
     const float* const getPairwiseMat() const { return pairwiseMat_; }
@@ -48,8 +57,8 @@ private:
     bool parseResult_;
     
     std::vector<int> idOrder_;
-    std::map<int, std::pair<float,float>> derivatives1_;
-    std::map<int, std::pair<float,float>> derivatives2_;
+    std::map<int, std::vector<float>> derivatives1_;
+    std::map<int, std::vector<float>> derivatives2_;
     std::map<int, float> speeds_;
     std::map<int, float> accelerations_;
     float* pairwiseMat_, *dtwMat_;
@@ -59,14 +68,14 @@ private:
     std::vector<std::vector<float>> groupTarget_;
     std::map<std::string, std::vector<float>> templatesData_;
     
-//    void processIdOrder(std::vector<rapidjson::Document>& messages,
-//                        std::vector<int>& idOrder);
-//    void processDerivatives(std::vector<rapidjson::Document>& messages,
-//                            std::vector<int>& idOrder,
-//                            std::map<int, std::pair<float,float>>& derivatives1,
-//                            std::map<int, std::pair<float,float>>& derivatives2,
-//                            std::map<int, float>& speeds,
-//                            std::map<int, float>& accelerations);
+    void processIdOrder(std::vector<rapidjson::Document>& messages,
+                        std::vector<int>& idOrder);
+    void processDerivatives(std::vector<rapidjson::Document>& messages,
+                            std::vector<int>& idOrder,
+                            std::map<int, std::vector<float>>& derivatives1,
+                            std::map<int, std::vector<float>>& derivatives2,
+                            std::map<int, float>& speeds,
+                            std::map<int, float>& accelerations);
 //    void processPairwise(std::vector<rapidjson::Document>& messages,
 //                         std::vector<int>& idOrder,
 //                         float* pairwiseMatrix);
@@ -86,9 +95,18 @@ private:
 //                          std::vector<int>& idOrder,
 //                          std::map<std::string, std::vector<float>>& templates);
 //
-//    bool retireve(const std::string& key,
-//                  std::vector<rapidjson::Document>&,
-//                  rapidjson::Value&);
+    bool retireve(const std::string& key,
+                  std::vector<rapidjson::Document>&,
+                  rapidjson::Value&);
+    
+    bool retrieveOrdered(const rapidjson::Value& document,
+                         const char* key,
+                         const std::vector<int>& idOrder,
+                         std::map<int, std::vector<float>>& listOfLists);
+    bool retrieveOrdered(const rapidjson::Value& document,
+                         const char* key,
+                         const std::vector<int>& idOrder,
+                         std::map<int, float>& list);
 };
 
 #endif /* om_json_parser_hpp */
