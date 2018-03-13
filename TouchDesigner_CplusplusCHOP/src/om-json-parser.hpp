@@ -55,6 +55,7 @@ public:
 private:
     std::string errMsg_;
     bool parseResult_;
+    int pairwiseStride_;
     
     std::vector<int> idOrder_;
     std::map<int, std::vector<float>> derivatives1_;
@@ -76,25 +77,23 @@ private:
                             std::map<int, std::vector<float>>& derivatives2,
                             std::map<int, float>& speeds,
                             std::map<int, float>& accelerations);
-//    void processPairwise(std::vector<rapidjson::Document>& messages,
-//                         std::vector<int>& idOrder,
-//                         float* pairwiseMatrix);
-//    void processClusters(std::vector<rapidjson::Document>& messages,
-//                         std::vector<std::vector<float>>& clustersData);
-//    void processStageDistances(std::vector<rapidjson::Document>& messages,
-//                               std::vector<int>& idOrder,
-//                               std::map<int, std::vector<float>>& stageDistances);
-//    void processHotspots(std::vector<rapidjson::Document>& messages,
-//                         std::vector<std::vector<float>>& hotspotsData);
-//    void processDtw(std::vector<rapidjson::Document>& messages,
-//                    std::vector<int>& idOrder,
-//                    float* dtwMatrix);
-//    void processGroupTarget(std::vector<rapidjson::Document>& messages,
-//                            std::vector<std::vector<float>>& groupTarget);
-//    void processTemplates(std::vector<rapidjson::Document>& messages,
-//                          std::vector<int>& idOrder,
-//                          std::map<std::string, std::vector<float>>& templates);
-//
+    void processDistances(std::vector<rapidjson::Document>& messages,
+                          std::vector<int>& idOrder,
+                          float* pairwiseMatrix,
+                          std::map<int, std::vector<float>>& stageDistances);
+    void processClusters(std::vector<rapidjson::Document>& messages,
+                         std::vector<std::vector<float>>& clustersData);
+    void processHotspots(std::vector<rapidjson::Document>& messages,
+                         std::vector<std::vector<float>>& hotspotsData);
+    void processDtw(std::vector<rapidjson::Document>& messages,
+                    std::vector<int>& idOrder,
+                    float* dtwMatrix);
+    void processGroupTarget(std::vector<rapidjson::Document>& messages,
+                            std::vector<std::vector<float>>& groupTarget);
+    void processTemplates(std::vector<rapidjson::Document>& messages,
+                          std::vector<int>& idOrder,
+                          std::map<std::string, std::vector<float>>& templates);
+
     bool retireve(const std::string& key,
                   std::vector<rapidjson::Document>&,
                   rapidjson::Value&);
@@ -103,10 +102,27 @@ private:
                          const char* key,
                          const std::vector<int>& idOrder,
                          std::map<int, std::vector<float>>& listOfLists);
+    bool retrieveUnordered(const rapidjson::Value& document,
+                           const char* key,
+                           std::vector<std::vector<float>>& listOfLists);
     bool retrieveOrdered(const rapidjson::Value& document,
                          const char* key,
                          const std::vector<int>& idOrder,
                          std::map<int, float>& list);
+    bool retrieveOrdered(const rapidjson::Value& document,
+                         const char* key,
+                         const std::vector<int>& idOrder,
+                         float *mat);
+    
+    bool retrieveStageDistances(const rapidjson::Value& document,
+                                const char* key,
+                                const std::vector<int>& idOrder,
+                                std::map<int, std::vector<float>>& stageDistances);
+    
+    bool hasSubType(std::vector<rapidjson::Document>& messages,
+                    std::string subType) const;
+    
+    void clearAll();
 };
 
 #endif /* om_json_parser_hpp */

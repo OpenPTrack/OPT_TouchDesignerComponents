@@ -38,7 +38,7 @@
 #define OM_JSON_SUBTYPE_CLUSTER "cluster"
 #define OM_JSON_CLUSTER_POINTS  "cluster"
 #define OM_JSON_CLUSTERCENTERS  "center"
-#define OM_JSON_CLUSTERSPREADS  "spreads"
+#define OM_JSON_CLUSTERSPREADS  "spread"
 
 #define OM_JSON_SUBTYPE_MDYN    "massdynamics"
 #define OM_JSON_TREND           "trend"
