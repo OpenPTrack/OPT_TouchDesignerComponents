@@ -343,6 +343,8 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
         switch (outChoice_) {
             case Derivatives:
             {
+                long sampleIdx = 0;
+                
                 for (auto pair:omJsonParser_->getD1()) // { id -> <dx,dy> }
                 {
                     int id = pair.first;
@@ -358,13 +360,18 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     }
                     else
                     {
-                        long sampleIdx = it-omJsonParser_->getIdOrder().begin();
+                        sampleIdx = it-omJsonParser_->getIdOrder().begin();
                         
                         output->channels[0][sampleIdx] = id;
                         output->channels[1][sampleIdx] = pair.second[0];
                         output->channels[2][sampleIdx] = pair.second[1];
                     }
                 }
+                
+                if (!blankRun && sampleIdx < output->numSamples)
+                    for (;sampleIdx < output->numSamples; ++sampleIdx)
+                        output->channels[0][sampleIdx] = -1;
+                
                 
                 for (auto pair:omJsonParser_->getD2()) // { id -> <dx,dy> }
                 {
@@ -381,7 +388,11 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     }
                     else
                     {
+<<<<<<< HEAD
                         long sampleIdx = it-omJsonParser_->getIdOrder().begin();
+=======
+                        sampleIdx = it-idOrder.begin();
+>>>>>>> master
                         
                         output->channels[3][sampleIdx] = pair.second[0];
                         output->channels[4][sampleIdx] = pair.second[1];
@@ -727,6 +738,69 @@ OM_CHOP::processQueue()
 }
 
 void
+<<<<<<< HEAD
+=======
+OM_CHOP::processMessages(vector<rapidjson::Document>& messages,
+                         vector<int>& idOrder,
+                         map<int, pair<float,float>>& derivatives1,
+                         map<int, pair<float,float>>& derivatives2,
+                         map<int, float>& speeds,
+                         map<int, float>& accelerations,
+                         float* pairwiseMatrix,
+                         vector<vector<float>>& clustersData,
+                         map<int, vector<float>>& stageDistances,
+                         vector<vector<float>>& hotspotsData,
+                         float* dtwMatrix,
+                         vector<vector<float>>& groupTarget,
+                         map<string, vector<float>>& templates)
+{
+    processIdOrder(messages, idOrder);
+    if (idOrder.size() == 0)
+        SET_CHOP_WARN(msg << "idorder/aliveIDs array is empty")
+    else
+    {
+        processDerivatives(messages, idOrder, derivatives1, derivatives2, speeds, accelerations);
+        processPairwise(messages, idOrder, pairwiseMatrix);
+        processClusters(messages, clustersData);
+        processDtw(messages, idOrder, dtwMatrix);
+        processStageDistances(messages, idOrder, stageDistances);
+        processHotspots(messages, hotspotsData);
+        processGroupTarget(messages, groupTarget);
+        processTemplates(messages, idOrder, templates);
+    }
+}
+
+bool
+OM_CHOP::retireve(const string& key,
+                  vector<rapidjson::Document>& messages,
+                  rapidjson::Value& val)
+{
+    
+    for (auto &m:messages)
+    {
+#if 0
+        {
+            rapidjson::StringBuffer buffer;
+            buffer.Clear();
+            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+            m.Accept(writer);
+            
+            cout << "---> message: " << buffer.GetString() << endl;
+        }
+#endif
+        
+        if (m.HasMember(key.c_str()))
+        {
+            val = m[key.c_str()];
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+void
+>>>>>>> master
 OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
 {
     string outputChoice(inputs->getParString(PAR_OUTPUT));
