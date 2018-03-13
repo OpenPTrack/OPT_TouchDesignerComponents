@@ -340,6 +340,8 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
         switch (outChoice_) {
             case Derivatives:
             {
+                long sampleIdx = 0;
+                
                 for (auto pair:derivatives1) // { id -> <dx,dy> }
                 {
                     int id = pair.first;
@@ -354,13 +356,17 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     }
                     else
                     {
-                        long sampleIdx = it-idOrder.begin();
+                        sampleIdx = it-idOrder.begin();
                         
                         output->channels[0][sampleIdx] = id;
                         output->channels[1][sampleIdx] = pair.second.first;
                         output->channels[2][sampleIdx] = pair.second.second;
                     }
                 }
+                
+                if (!blankRun && sampleIdx < output->numSamples)
+                    for (;sampleIdx < output->numSamples; ++sampleIdx)
+                        output->channels[0][sampleIdx] = -1;
                 
                 for (auto pair:derivatives2) // { id -> <dx,dy> }
                 {
@@ -376,7 +382,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     }
                     else
                     {
-                        long sampleIdx = it-idOrder.begin();
+                        sampleIdx = it-idOrder.begin();
                         
                         output->channels[3][sampleIdx] = pair.second.first;
                         output->channels[4][sampleIdx] = pair.second.second;
@@ -724,7 +730,7 @@ OM_CHOP::processMessages(vector<rapidjson::Document>& messages,
 {
     processIdOrder(messages, idOrder);
     if (idOrder.size() == 0)
-        SET_CHOP_ERROR(msg << "idorder/aliveIDs array is empty")
+        SET_CHOP_WARN(msg << "idorder/aliveIDs array is empty")
     else
     {
         processDerivatives(messages, idOrder, derivatives1, derivatives2, speeds, accelerations);
