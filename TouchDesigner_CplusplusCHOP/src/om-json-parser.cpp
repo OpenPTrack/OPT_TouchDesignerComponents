@@ -9,6 +9,9 @@
 #include "om-json-parser.hpp"
 
 #include <sstream>
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
+#include <iostream>
 
 #include "defines.h"
 
@@ -74,14 +77,16 @@ OmJsonParser::parse(vector<rapidjson::Document> &messages,
     
     for (auto& st:subtypesToCheck)
     {
-        if (!hasSubType(messages, subtype))
+        // TODO: this should be var not vector
+        std::vector<rapidjson::Document> subTypeMsg;
+        if (!hasSubType(messages, subtype, subTypeMsg))
             continue;
         
         switch (st) {
             case All:
             case Derivatives:
             {
-                    processDerivatives(messages,
+                    processDerivatives(subTypeMsg,
                                        idOrder_,
                                        derivatives1_,
                                        derivatives2_,
@@ -92,7 +97,7 @@ OmJsonParser::parse(vector<rapidjson::Document> &messages,
                     break;
             case Distance:
             {
-                    processDistances(messages,
+                    processDistances(subTypeMsg,
                                      idOrder_,
                                      pairwiseMat_,
                                      stageDistances_);
@@ -101,21 +106,21 @@ OmJsonParser::parse(vector<rapidjson::Document> &messages,
                     break;
             case Cluster:
             {
-                    processClusters(messages, clustersData_, clusterIds_);
+                    processClusters(subTypeMsg, clustersData_, clusterIds_);
             }
                 if (st != All)
                     break;
             case Massdyn:
             {
-                    processHotspots(messages, hotspotsData_);
-                    processGroupTarget(messages, groupTarget_);
+                    processHotspots(subTypeMsg, hotspotsData_);
+                    processGroupTarget(subTypeMsg, groupTarget_);
             }
                 if (st != All)
                     break;
             case Similarity:
                 {
-                    processDtw(messages, idOrder_, dtwMat_);
-                    processTemplates(messages, idOrder_, templatesData_);
+                    processDtw(subTypeMsg, idOrder_, dtwMat_);
+                    processTemplates(subTypeMsg, idOrder_, templatesData_);
                 }
                 if (st != All)
                     break;
@@ -227,9 +232,24 @@ OmJsonParser::processClusters(std::vector<rapidjson::Document> &messages,
                               std::vector<std::vector<float> > &clustersData,
                               std::vector<std::vector<float>>& clusterIds)
 {
+//    for (auto& m:messages)
+//    {
+//        rapidjson::StringBuffer buffer;
+//        buffer.Clear();
+//        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+//        m.Accept(writer);
+//        std::cout << "got message: " << buffer.GetString() << std::endl;
+//    }
+    
     rapidjson::Value values;
     if (retireve(OM_JSON_VALUES, messages, values))
     {
+        rapidjson::StringBuffer buffer;
+        buffer.Clear();
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        values.Accept(writer);
+        std::cout << "cluster values: " << buffer.GetString() << std::endl;
+        
         if (retrieveUnordered(values, OM_JSON_CLUSTERCENTERS, clustersData_))
         {
             if (!values.HasMember(OM_JSON_CLUSTERSPREADS) || !values[OM_JSON_CLUSTERCENTERS].IsArray())
@@ -597,7 +617,8 @@ OmJsonParser::retrieveStageDistances(const rapidjson::Value &document,
 
 bool
 OmJsonParser::hasSubType(std::vector<rapidjson::Document> &messages,
-                         std::string subType) const
+                         std::string subType,
+                         std::vector<rapidjson::Document> &subtypeMsg) const
 {
     for (auto& d:messages)
         if (d.HasMember(OM_JSON_PACKET) && d[OM_JSON_PACKET].IsObject())
@@ -606,7 +627,10 @@ OmJsonParser::hasSubType(std::vector<rapidjson::Document> &messages,
             {
                 const char* st = d[OM_JSON_PACKET][OM_JSON_SUBTYPE].GetString();
                 if (subType == string(st))
+                {
+                    subtypeMsg.push_back(move(d));
                     return true;
+                }
             }
         }
     

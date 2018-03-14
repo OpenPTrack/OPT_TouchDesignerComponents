@@ -123,7 +123,8 @@ private:
                                 std::map<int, std::vector<float>>& stageDistances);
     
     bool hasSubType(std::vector<rapidjson::Document>& messages,
-                    std::string subType) const;
+                    std::string subType,
+                    std::vector<rapidjson::Document>& subtypeMsg) const;
     
     void clearAll();
 };
