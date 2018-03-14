@@ -456,6 +456,12 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                         output->channels[1][sampleIdx] = omJsonParser_->getClusters()[sampleIdx][1];
                         output->channels[2][sampleIdx] = omJsonParser_->getClusters()[sampleIdx][2];
                     }
+                    else if (!blankRun)
+                    {
+                        output->channels[0][sampleIdx] = 0;
+                        output->channels[1][sampleIdx] = 0;
+                        output->channels[2][sampleIdx] = 0;
+                    }
                 }
             }
                 break;
@@ -469,7 +475,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                         output->channels[1][sampleIdx] = omJsonParser_->getClusterIds()[sampleIdx][1];
                         output->channels[2][sampleIdx] = omJsonParser_->getClusterIds()[sampleIdx][2];
                     }
-                    else
+                    else if (!blankRun)
                     {
                         output->channels[0][sampleIdx] = 0;
                         output->channels[1][sampleIdx] = 0;

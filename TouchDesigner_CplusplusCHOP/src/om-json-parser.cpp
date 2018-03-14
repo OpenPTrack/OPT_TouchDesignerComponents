@@ -232,26 +232,11 @@ OmJsonParser::processClusters(std::vector<rapidjson::Document> &messages,
                               std::vector<std::vector<float> > &clustersData,
                               std::vector<std::vector<float>>& clusterIds)
 {
-//    for (auto& m:messages)
-//    {
-//        rapidjson::StringBuffer buffer;
-//        buffer.Clear();
-//        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-//        m.Accept(writer);
-//        std::cout << "got message: " << buffer.GetString() << std::endl;
-//    }
-    
     rapidjson::Value values;
     if (retireve(OM_JSON_VALUES, messages, values))
     {
-        rapidjson::StringBuffer buffer;
-        buffer.Clear();
-        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        values.Accept(writer);
-        std::cout << "cluster values: " << buffer.GetString() << std::endl;
-        
-        if (retrieveUnordered(values, OM_JSON_CLUSTERCENTERS, clustersData_))
-        {
+        if (retrieveUnordered(values, OM_JSON_CLUSTERCENTERS, clustersData))
+        {   
             if (!values.HasMember(OM_JSON_CLUSTERSPREADS) || !values[OM_JSON_CLUSTERCENTERS].IsArray())
                 SET_ERR_MSG("can't find field " << OM_JSON_CLUSTERSPREADS << " or field is not a list")
             else
