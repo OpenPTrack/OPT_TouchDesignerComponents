@@ -47,7 +47,7 @@ public:
     const float* const getPairwiseMat() const { return pairwiseMat_; }
     const float* const getDtwMat() const { return dtwMat_; }
     const std::vector<std::vector<float>>& getClusters() const { return clustersData_; }
-    const std::vector<std::vector<float>>& getClusterIds() const { return clusterIds_; }
+    const std::vector<std::vector<std::vector<float>>>& getClusterIds() const { return clusterIds_; }
     const std::map<int, std::vector<float>>& getStageDists() const { return stageDistances_; }
     const std::vector<std::vector<float>>& getHotspots() const { return hotspotsData_; }
     const std::vector<std::vector<float>>& getGroupTarget() const { return groupTarget_; }
@@ -65,7 +65,7 @@ private:
     std::map<int, float> accelerations_;
     float* pairwiseMat_, *dtwMat_;
     std::vector<std::vector<float>> clustersData_;
-    std::vector<std::vector<float>> clusterIds_;
+    std::vector<std::vector<std::vector<float>>> clusterIds_;
     std::map<int, std::vector<float>> stageDistances_;
     std::vector<std::vector<float>> hotspotsData_;
     std::vector<std::vector<float>> groupTarget_;
@@ -85,7 +85,7 @@ private:
                           std::map<int, std::vector<float>>& stageDistances);
     void processClusters(std::vector<rapidjson::Document>& messages,
                          std::vector<std::vector<float>>& clustersData,
-                         std::vector<std::vector<float>>& clusterIds);
+                         std::vector<std::vector<std::vector<float>>>& clusterIds);
     void processHotspots(std::vector<rapidjson::Document>& messages,
                          std::vector<std::vector<float>>& hotspotsData);
     void processDtw(std::vector<rapidjson::Document>& messages,

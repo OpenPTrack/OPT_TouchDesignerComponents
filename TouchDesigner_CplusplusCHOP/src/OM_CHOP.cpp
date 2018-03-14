@@ -59,7 +59,7 @@ using namespace chrono;
 
 static const char* DerOutNames[7] = { "id", "d1x", "d1y", "d2x", "d2y", "speed", "accel"};
 static const char* StageDistNames[5] = { "id", "us", "ds", "sl", "sr"};
-static const char* ClusterOutNames[3] = { "x", "y", "spread"};
+static const char* ClusterOutNames[4] = { "x", "y", "spread", "size" };
 static const char* ClusterIdsOutNames[3] = { "id", "x", "y"};
 static const char* HotspotsOutNames[3] = { "x", "y", "spread"};
 static const char* GroupTargetNames[4] = { "val", "x", "y", "z"};
@@ -195,7 +195,7 @@ bool OM_CHOP::getOutputInfo(CHOP_OutputInfo * info)
             info->numChannels = info->opInputs->getParInt(PAR_MAXTRACKED);
             break;
         case Cluster:
-            info->numChannels = 3; // x y spread
+            info->numChannels = 4; // x y spread size
             break;
         case ClusterIds:
             info->numChannels = 3; // id x y of - a person
@@ -292,6 +292,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                 {
                     bool oldMessage = ((*it).first < seq_);
                     vector<rapidjson::Document>& msgs = (*it).second.second;
+                    
                     bundleStr = bundleToString(msgs);
                     
                     if (oldMessage)
@@ -314,14 +315,13 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                         if (!omJsonParser_->parse(msgs, parsedSubtypes, subtypeToParse))
                             SET_CHOP_WARN(msg << "Failed to parse subtype " << subtypeToParse
                                           << " due to error: " << omJsonParser_->getParseError())
+                        
+                        blankRun = (parsedSubtypes.size() == 0);
                     }
                     
                     seq_ = (*it).first;
                     messages_.erase(it++);
-
-                    blankRun = false;
                     nAliveIds_ = omJsonParser_->getIdOrder().size();
-                    nClusters_ = omJsonParser_->getClusters().size();
                     
                     break; // we're done here
                 } // if messages bundle
@@ -338,7 +338,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     else
                         ++it;
                 }
-            }
+            } // for msg in queue
         } // if queue not busy
         
         switch (outChoice_) {
@@ -462,25 +462,30 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                         output->channels[0][sampleIdx] = omJsonParser_->getClusters()[sampleIdx][0];
                         output->channels[1][sampleIdx] = omJsonParser_->getClusters()[sampleIdx][1];
                         output->channels[2][sampleIdx] = omJsonParser_->getClusters()[sampleIdx][2];
+                        output->channels[3][sampleIdx] = omJsonParser_->getClusterIds()[sampleIdx].size();
                     }
                     else if (!blankRun)
                     {
                         output->channels[0][sampleIdx] = 0;
                         output->channels[1][sampleIdx] = 0;
                         output->channels[2][sampleIdx] = 0;
+                        output->channels[3][sampleIdx] = 0;
                     }
                 }
+                
+                if (!blankRun) nClusters_ = omJsonParser_->getClusters().size();
             }
                 break;
             case ClusterIds:
             {
+                int clusterIdx = 0;
                 for (int sampleIdx = 0; sampleIdx < output->numSamples; sampleIdx++)
                 {
                     if (sampleIdx < omJsonParser_->getClusterIds().size())
                     {
-                        output->channels[0][sampleIdx] = omJsonParser_->getClusterIds()[sampleIdx][0];
-                        output->channels[1][sampleIdx] = omJsonParser_->getClusterIds()[sampleIdx][1];
-                        output->channels[2][sampleIdx] = omJsonParser_->getClusterIds()[sampleIdx][2];
+                        output->channels[0][sampleIdx] = omJsonParser_->getClusterIds()[clusterIdx][sampleIdx][0];
+                        output->channels[1][sampleIdx] = omJsonParser_->getClusterIds()[clusterIdx][sampleIdx][1];
+                        output->channels[2][sampleIdx] = omJsonParser_->getClusterIds()[clusterIdx][sampleIdx][2];
                     }
                     else if (!blankRun)
                     {
@@ -571,10 +576,6 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
     }
     else
         nBlankRuns_ = 0;
-    
-    copy(omJsonParser_->getIdOrder().begin(),
-         omJsonParser_->getIdOrder().end(),
-         back_inserter(lastAliveIds_));
 }
 
 int32_t

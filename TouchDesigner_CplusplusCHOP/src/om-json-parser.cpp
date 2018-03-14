@@ -14,6 +14,7 @@
 #include <iostream>
 
 #include "defines.h"
+#include "debug.h"
 
 using namespace std;
 
@@ -35,6 +36,15 @@ static map<string, OmJsonParser::PacketSubtype> StringSubtypeMap = {
     { OM_JSON_SUBTYPE_DIST, OmJsonParser::PacketSubtype::Distance },
     { OM_JSON_SUBTYPE_MDYN, OmJsonParser::PacketSubtype::Massdyn },
     { OM_JSON_SUBTYPE_CLUSTER, OmJsonParser::PacketSubtype::Cluster }
+};
+
+static map<OmJsonParser::PacketSubtype, string> SubtypeStringMap = {
+    { OmJsonParser::PacketSubtype::All, "all" },
+    { OmJsonParser::PacketSubtype::Derivatives, OM_JSON_SUBTYPE_DERS },
+    { OmJsonParser::PacketSubtype::Similarity, OM_JSON_SUBTYPE_SIM },
+    { OmJsonParser::PacketSubtype::Distance, OM_JSON_SUBTYPE_DIST },
+    { OmJsonParser::PacketSubtype::Massdyn, OM_JSON_SUBTYPE_MDYN },
+    { OmJsonParser::PacketSubtype::Cluster, OM_JSON_SUBTYPE_CLUSTER }
 };
 
 OmJsonParser::OmJsonParser(int maxMatSize):
@@ -78,7 +88,7 @@ OmJsonParser::parse(vector<rapidjson::Document> &messages,
     for (auto& st:subtypesToCheck)
     {
         // TODO: this should be var not vector
-        std::vector<rapidjson::Document> subTypeMsg;
+        vector<rapidjson::Document> subTypeMsg;
         if (!hasSubType(messages, subtype, subTypeMsg))
             continue;
         
@@ -86,12 +96,12 @@ OmJsonParser::parse(vector<rapidjson::Document> &messages,
             case All:
             case Derivatives:
             {
-                    processDerivatives(subTypeMsg,
-                                       idOrder_,
-                                       derivatives1_,
-                                       derivatives2_,
-                                       speeds_,
-                                       accelerations_);
+                processDerivatives(subTypeMsg,
+                                   idOrder_,
+                                   derivatives1_,
+                                   derivatives2_,
+                                   speeds_,
+                                   accelerations_);
             }
                 if (st != All)
                     break;
@@ -126,8 +136,10 @@ OmJsonParser::parse(vector<rapidjson::Document> &messages,
                     break;
             default:
                 break;
-        }
-    }
+        } // switch
+        
+        parsedSubtypes.insert(SubtypeStringMap[st]);
+    } // for
     
     return parseResult_;
 }
@@ -202,10 +214,10 @@ OmJsonParser::processDerivatives(vector<rapidjson::Document>& messages,
 }
 
 void
-OmJsonParser::processDistances(std::vector<rapidjson::Document>& messages,
-                               std::vector<int>& idOrder,
+OmJsonParser::processDistances(vector<rapidjson::Document>& messages,
+                               vector<int>& idOrder,
                                float* pairwiseMatrix,
-                               std::map<int, std::vector<float>>& stageDistances)
+                               map<int, vector<float>>& stageDistances)
 {
     rapidjson::Value values;
     if (retireve(OM_JSON_VALUES, messages, values))
@@ -214,7 +226,7 @@ OmJsonParser::processDistances(std::vector<rapidjson::Document>& messages,
         retrieveStageDistances(values, OM_JSON_STAGEDIST, idOrder, stageDistances);
     }
     else
-        SET_ERR_MSG("distances subtype; can't fund " << OM_JSON_VALUES);
+        SET_ERR_MSG("distances subtype; can't find " << OM_JSON_VALUES);
     
 #ifdef PRINT_PAIRWISE
     cout << "pairwise: " << endl;
@@ -228,9 +240,9 @@ OmJsonParser::processDistances(std::vector<rapidjson::Document>& messages,
 }
 
 void
-OmJsonParser::processClusters(std::vector<rapidjson::Document> &messages,
-                              std::vector<std::vector<float> > &clustersData,
-                              std::vector<std::vector<float>>& clusterIds)
+OmJsonParser::processClusters(vector<rapidjson::Document> &messages,
+                              vector<vector<float> > &clustersData,
+                              vector<vector<vector<float>>>& clusterIds)
 {
     rapidjson::Value values;
     if (retireve(OM_JSON_VALUES, messages, values))
@@ -257,6 +269,7 @@ OmJsonParser::processClusters(std::vector<rapidjson::Document> &messages,
         
         if (values.HasMember(OM_JSON_CLUSTER_POINTS) && values[OM_JSON_CLUSTER_POINTS].IsArray())
         {
+            // [[[499, 0.468, 1.275]], [[505, -3.047, 0.394]]]
             const rapidjson::Value& clusters = values[OM_JSON_CLUSTER_POINTS].GetArray();
             
             for (rapidjson::SizeType i = 0; i < clusters.Size(); ++i)
@@ -265,8 +278,10 @@ OmJsonParser::processClusters(std::vector<rapidjson::Document> &messages,
                     SET_ERR_MSG("cluster array element is not a list")
                 else
                 {
+                    clusterIds.push_back(vector<vector<float>>());
+                    
+                    // [[499, 0.468, 1.275]]
                     const rapidjson::Value::ConstArray& cluster = clusters[i].GetArray();
-                    clusterIds.push_back(vector<float>());
                     
                     for (rapidjson::SizeType k = 0; k < cluster.Size(); ++k)
                     {
@@ -274,6 +289,9 @@ OmJsonParser::processClusters(std::vector<rapidjson::Document> &messages,
                             SET_ERR_MSG("cluster point is not a list")
                         else
                         {
+                            clusterIds.back().push_back(vector<float>());
+                            
+                            // [499, 0.468, 1.275]
                             const rapidjson::Value::ConstArray& clusterPoint = cluster[k].GetArray();
                             
                             if (clusterPoint.Size() < 3)
@@ -287,7 +305,7 @@ OmJsonParser::processClusters(std::vector<rapidjson::Document> &messages,
                                         SET_ERR_MSG("cluster point contains elements other than float type")
                                     else
                                         val = clusterPoint[idx].GetFloat();
-                                    clusterIds.back().push_back(val);
+                                    clusterIds.back().back().push_back(val);
                                 }
                             }
                         } // cluster point is array
@@ -312,8 +330,8 @@ OmJsonParser::processClusters(std::vector<rapidjson::Document> &messages,
 }
 
 void
-OmJsonParser::processHotspots(std::vector<rapidjson::Document>& messages,
-                              std::vector<std::vector<float>>& hotspotsData)
+OmJsonParser::processHotspots(vector<rapidjson::Document>& messages,
+                              vector<vector<float>>& hotspotsData)
 {
     rapidjson::Value values;
     if (retireve(OM_JSON_VALUES, messages, values))
@@ -325,8 +343,8 @@ OmJsonParser::processHotspots(std::vector<rapidjson::Document>& messages,
 }
 
 void
-OmJsonParser::processGroupTarget(std::vector<rapidjson::Document>& messages,
-                        std::vector<std::vector<float>>& groupTarget)
+OmJsonParser::processGroupTarget(vector<rapidjson::Document>& messages,
+                        vector<vector<float>>& groupTarget)
 {
     rapidjson::Value values;
     if (retireve(OM_JSON_VALUES, messages, values))
@@ -338,8 +356,8 @@ OmJsonParser::processGroupTarget(std::vector<rapidjson::Document>& messages,
 }
 
 void
-OmJsonParser::processDtw(std::vector<rapidjson::Document>& messages,
-                         std::vector<int>& idOrder,
+OmJsonParser::processDtw(vector<rapidjson::Document>& messages,
+                         vector<int>& idOrder,
                          float* dtwMatrix)
 {
     rapidjson::Value values;
@@ -352,9 +370,9 @@ OmJsonParser::processDtw(std::vector<rapidjson::Document>& messages,
 }
 
 void
-OmJsonParser::processTemplates(std::vector<rapidjson::Document>& messages,
-                      std::vector<int>& idOrder,
-                      std::map<std::string, std::vector<float>>& templates)
+OmJsonParser::processTemplates(vector<rapidjson::Document>& messages,
+                      vector<int>& idOrder,
+                      map<string, vector<float>>& templates)
 {
     rapidjson::Value values;
     if (retireve(OM_JSON_VALUES, messages, values))
@@ -450,8 +468,8 @@ OmJsonParser::retrieveOrdered(const rapidjson::Value& document,
 bool
 OmJsonParser::retrieveOrdered(const rapidjson::Value& document,
                               const char* key,
-                              const std::vector<int>& idOrder,
-                              std::map<int, float>& list)
+                              const vector<int>& idOrder,
+                              map<int, float>& list)
 {
     parseResult_ = true;
     
@@ -491,7 +509,7 @@ OmJsonParser::retrieveOrdered(const rapidjson::Value& document,
 bool
 OmJsonParser::retrieveOrdered(const rapidjson::Value &document,
                               const char *key,
-                              const std::vector<int> &idOrder,
+                              const vector<int> &idOrder,
                               float *mat)
 {
     parseResult_ = true;
@@ -553,8 +571,8 @@ OmJsonParser::retrieveOrdered(const rapidjson::Value &document,
 bool
 OmJsonParser::retrieveStageDistances(const rapidjson::Value &document,
                                      const char *key,
-                                     const std::vector<int> &idOrder,
-                                     std::map<int, std::vector<float> > &stageDistances)
+                                     const vector<int> &idOrder,
+                                     map<int, vector<float> > &stageDistances)
 {
     parseResult_ = true;
     if (document.HasMember(key))
@@ -601,9 +619,9 @@ OmJsonParser::retrieveStageDistances(const rapidjson::Value &document,
 }
 
 bool
-OmJsonParser::hasSubType(std::vector<rapidjson::Document> &messages,
-                         std::string subType,
-                         std::vector<rapidjson::Document> &subtypeMsg) const
+OmJsonParser::hasSubType(vector<rapidjson::Document> &messages,
+                         string subType,
+                         vector<rapidjson::Document> &subtypeMsg) const
 {
     for (auto& d:messages)
         if (d.HasMember(OM_JSON_PACKET) && d[OM_JSON_PACKET].IsObject())
@@ -625,7 +643,7 @@ OmJsonParser::hasSubType(std::vector<rapidjson::Document> &messages,
 bool
 OmJsonParser::retrieveUnordered(const rapidjson::Value& document,
                        const char* key,
-                       std::vector<std::vector<float>>& listOfLists)
+                       vector<vector<float>>& listOfLists)
 {
     parseResult_ = true;
     
