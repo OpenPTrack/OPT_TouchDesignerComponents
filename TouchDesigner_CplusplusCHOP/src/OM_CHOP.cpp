@@ -363,11 +363,13 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     else
                     {
                         sampleIdx = it-omJsonParser_->getIdOrder().begin();
-                        fixedSamples.insert(sampleIdx);
-                        
-                        output->channels[0][sampleIdx] = id;
-                        output->channels[1][sampleIdx] = pair.second[0];
-                        output->channels[2][sampleIdx] = pair.second[1];
+                        if (sampleIdx < output->numChannels)
+                        {
+                            fixedSamples.insert(sampleIdx);
+                            output->channels[0][sampleIdx] = id;
+                            output->channels[1][sampleIdx] = pair.second[0];
+                            output->channels[2][sampleIdx] = pair.second[1];
+                        }
                     }
                 }
                 
@@ -393,8 +395,11 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     {
                         sampleIdx = it-omJsonParser_->getIdOrder().begin();
                         
-                        output->channels[3][sampleIdx] = pair.second[0];
-                        output->channels[4][sampleIdx] = pair.second[1];
+                        if (sampleIdx < output->numSamples)
+                        {
+                            output->channels[3][sampleIdx] = pair.second[0];
+                            output->channels[4][sampleIdx] = pair.second[1];
+                        }
                     }
                 }
                 
@@ -412,7 +417,8 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     else
                     {
                         long sampleIdx = it-omJsonParser_->getIdOrder().begin();
-                        output->channels[5][sampleIdx] = pair.second;
+                        if (sampleIdx < output->numSamples)
+                            output->channels[5][sampleIdx] = pair.second;
                     }
                 }
                 for (auto pair:omJsonParser_->getAccelerations())
@@ -429,7 +435,8 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     else
                     {
                         long sampleIdx = it-omJsonParser_->getIdOrder().begin();
-                        output->channels[6][sampleIdx] = pair.second;
+                        if (sampleIdx < output->numChannels)
+                            output->channels[6][sampleIdx] = pair.second;
                     }
                 }
             }
@@ -502,12 +509,15 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                         
                         if (pair.second.size() >= 4)
                         {
-                            output->channels[0][sampleIdx] = id;
-                            
-                            output->channels[1][sampleIdx] = pair.second[0];
-                            output->channels[2][sampleIdx] = pair.second[1];
-                            output->channels[3][sampleIdx] = pair.second[2];
-                            output->channels[4][sampleIdx] = pair.second[3];
+                            if (sampleIdx < output->numSamples)
+                            {
+                                output->channels[0][sampleIdx] = id;
+                                
+                                output->channels[1][sampleIdx] = pair.second[0];
+                                output->channels[2][sampleIdx] = pair.second[1];
+                                output->channels[3][sampleIdx] = pair.second[2];
+                                output->channels[4][sampleIdx] = pair.second[3];
+                            }
                         }
                         else
                             SET_CHOP_WARN(msg << "Insufficient data on stage dists (only "
@@ -520,7 +530,8 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
             {
                 for (int sampleIdx = 0; sampleIdx < output->numSamples; sampleIdx++)
                 {
-                    if (sampleIdx < omJsonParser_->getHotspots().size())
+                    if (sampleIdx < omJsonParser_->getHotspots().size() &&
+                        sampleIdx < output->numSamples)
                     {
                         output->channels[0][sampleIdx] = omJsonParser_->getHotspots()[sampleIdx][0];
                         output->channels[1][sampleIdx] = omJsonParser_->getHotspots()[sampleIdx][1];
