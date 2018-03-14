@@ -320,6 +320,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     messages_.erase(it++);
 
                     blankRun = false;
+                    nAliveIds_ = omJsonParser_->getIdOrder().size();
                     nClusters_ = omJsonParser_->getClusters().size();
                     
                     break; // we're done here
@@ -343,6 +344,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
         switch (outChoice_) {
             case Derivatives:
             {
+                set<int> fixedSamples;
                 long sampleIdx = 0;
                 
                 for (auto pair:omJsonParser_->getD1()) // { id -> <dx,dy> }
@@ -361,6 +363,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     else
                     {
                         sampleIdx = it-omJsonParser_->getIdOrder().begin();
+                        fixedSamples.insert(sampleIdx);
                         
                         output->channels[0][sampleIdx] = id;
                         output->channels[1][sampleIdx] = pair.second[0];
@@ -368,10 +371,10 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                     }
                 }
                 
-                if (!blankRun && sampleIdx < output->numSamples)
-                    for (;sampleIdx < output->numSamples; ++sampleIdx)
-                        output->channels[0][sampleIdx] = -1;
-                
+                // TODO: this prob need to be smarter than just a loop
+                for (int i = 0; i < output->numSamples; ++i)
+                    if (fixedSamples.find(i) == fixedSamples.end())
+                        output->channels[0][i] = -1;
                 
                 for (auto pair:omJsonParser_->getD2()) // { id -> <dx,dy> }
                 {
@@ -743,8 +746,12 @@ OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
 void
 OM_CHOP::blankRunsTrigger()
 {
+    nAliveIds_ = 0;
     nClusters_ = 0;
 #ifdef PRINT_BLANKRUN_TRIGGER
+    cout << "------------------------------" << endl;
+    cout << endl;
     cout << "Blank run!" << endl;
+    cout << "------------------------------" << endl;
 #endif
 }
