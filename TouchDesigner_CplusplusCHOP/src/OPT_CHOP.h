@@ -70,10 +70,9 @@ private:
     void checkInputs(const CHOP_Output *, OP_Inputs *inputs, void *);
     void blankRunsTrigger();
     
-//    char buf[BUFLEN];
     std::map<float, std::vector<float>> data;
     std::set<int> aliveIds_;
-
+    std::map<string, int> faceNameMap_;
 };
 
 #endif

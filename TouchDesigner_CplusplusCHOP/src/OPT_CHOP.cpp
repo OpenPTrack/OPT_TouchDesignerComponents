@@ -59,15 +59,27 @@ errexpr; \
 warningMessage_ = msg.str(); \
 }
 
-#define PORTNUM 21234
+#define PORTNUM 21236
 #define NPAR_OUT 7
 #define PAR_MAXTRACKED "Maxtracked"
+#define PAR_MINX "Minx"
+#define PAR_MAXX "Maxx"
+#define PAR_MINY "Miny"
+#define PAR_MAXY "Maxy"
+#define PAR_MINZ "Minz"
+#define PAR_MAXZ "Maxz"
+#define PAR_FILTERTOGGLE "Filtertoggle"
 
 using namespace std;
 
-static const char* ChanNames[7] = { "id", "age", "confidence", "x", "y", "height", "isAlive"};
+static const char* ChanNames[8] = { "id", "age", "confidence", "x", "y", "height", "isAlive", "stableId" };
 
 static shared_ptr<JsonSocketReader> SocketReader;
+
+inline bool withinBounds(float val, float min, float max)
+{
+    return (val >= min && val <= max);
+}
 
 //Required functions.
 extern "C"
@@ -135,13 +147,27 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
     errorMessage_ = "";
     checkInputs(output, inputs, reserved);
     processQueue();
+    float minX = -MAXFLOAT, maxX = MAXFLOAT,
+          minY = -MAXFLOAT, maxY = MAXFLOAT,
+          minZ = -MAXFLOAT, maxZ = MAXFLOAT;
+    
+    if (inputs->getParInt(PAR_FILTERTOGGLE))
+    {
+        minX = inputs->getParDouble(PAR_MINX);
+        maxX = inputs->getParDouble(PAR_MAXX);
+        minY = inputs->getParDouble(PAR_MINY);
+        maxY = inputs->getParDouble(PAR_MAXY);
+        minZ = inputs->getParDouble(PAR_MINZ);
+        maxZ = inputs->getParDouble(PAR_MAXZ);
+    }
     
     map<int, vector<float>> newTracks;
 
     bool blankRun = true;
     
     {
-        processBundle([this, output, &blankRun, &newTracks](vector<rapidjson::Document>& msgs){
+        processBundle([this, output, &blankRun, &newTracks,
+                       minX, maxX, minY, maxY, minZ, maxZ](vector<rapidjson::Document>& msgs){
             if (msgs.size() == 0)
                 return ;
             
@@ -194,18 +220,27 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
                                 SET_CHOP_WARN(msg << "track doesn't have " << OPT_JSON_ID << " field")
                             else
                             {
-                                int trackId = tracks[i][OPT_JSON_ID].GetInt();
-                                vector<float> data;
+                                float x = tracks[i].HasMember(OPT_JSON_X) ? tracks[i][OPT_JSON_X].GetFloat() : -1;
+                                float y = tracks[i].HasMember(OPT_JSON_Y) ? tracks[i][OPT_JSON_Y].GetFloat() : -1;
+                                float z = tracks[i].HasMember(OPT_JSON_HEIGHT) ? tracks[i][OPT_JSON_HEIGHT].GetFloat() : -1;
                                 
-                                data.push_back((float)trackId);
-                                data.push_back(tracks[i].HasMember(OPT_JSON_AGE) ? tracks[i][OPT_JSON_AGE].GetFloat() : -1);
-                                data.push_back(tracks[i].HasMember(OPT_JSON_CONFIDENCE) ? tracks[i][OPT_JSON_CONFIDENCE].GetFloat() : -1);
-                                data.push_back(tracks[i].HasMember(OPT_JSON_X) ? tracks[i][OPT_JSON_X].GetFloat() : -1);
-                                data.push_back(tracks[i].HasMember(OPT_JSON_Y) ? tracks[i][OPT_JSON_Y].GetFloat() : -1);
-                                data.push_back(tracks[i].HasMember(OPT_JSON_HEIGHT) ? tracks[i][OPT_JSON_HEIGHT].GetFloat() : -1);
-                                data.push_back((float)(aliveIds_.find(trackId) != aliveIds_.end()));
-                                
-                                newTracks.insert_or_assign(trackId, data);
+                                if (withinBounds(x, minX, maxX) &&
+                                    withinBounds(y, minY, maxY) &&
+                                    withinBounds(z, minZ, maxZ))
+                                {
+                                    int trackId = tracks[i][OPT_JSON_ID].GetInt();
+                                    vector<float> data;
+                                    
+                                    data.push_back((float)trackId);
+                                    data.push_back(tracks[i].HasMember(OPT_JSON_AGE) ? tracks[i][OPT_JSON_AGE].GetFloat() : -1);
+                                    data.push_back(tracks[i].HasMember(OPT_JSON_CONFIDENCE) ? tracks[i][OPT_JSON_CONFIDENCE].GetFloat() : -1);
+                                    data.push_back(x);
+                                    data.push_back(y);
+                                    data.push_back(z);
+                                    data.push_back((float)(aliveIds_.find(trackId) != aliveIds_.end()));
+                                    
+                                    newTracks.insert_or_assign(trackId, data);
+                                }
                             }
                         } // for tracks
                         
@@ -280,19 +315,81 @@ OPT_CHOP::getInfoCHOPChan(int32_t index,
 
 void OPT_CHOP::setupParameters(OP_ParameterManager* manager) 
 {
-	//Create new parameter 
-	OP_NumericParameter MaxTracked;
-
-	//Parameter details
-	MaxTracked.name = "Maxtracked";
-	MaxTracked.label = "Max Tracked";
-	MaxTracked.page = "OPT General";
-	MaxTracked.defaultValues[0] = 1;
-	MaxTracked.minValues[0] = 1;
-
-	//Add it to CHOP.
-    OP_ParAppendResult res = manager->appendInt(MaxTracked);
-    assert(res == OP_ParAppendResult::Success);
+    {
+        //Create new parameter
+        OP_NumericParameter MaxTracked;
+        
+        //Parameter details
+        MaxTracked.name = "Maxtracked";
+        MaxTracked.label = "Max Tracked";
+        MaxTracked.page = "General";
+        MaxTracked.defaultValues[0] = 1;
+        MaxTracked.minValues[0] = 1;
+        
+        //Add it to CHOP.
+        OP_ParAppendResult res = manager->appendInt(MaxTracked);
+        assert(res == OP_ParAppendResult::Success);
+    }
+    {
+        OP_NumericParameter filterToggle(PAR_FILTERTOGGLE);
+        OP_NumericParameter minX(PAR_MINX), maxX(PAR_MAXX),
+        minY(PAR_MINY), maxY(PAR_MAXY),
+        minZ(PAR_MINZ), maxZ(PAR_MAXZ);
+        
+        minX.label = "Min X";
+        minX.page = "Filtering";
+        minX.defaultValues[0] = -5;
+        minX.minSliders[0] = -100;
+        minX.maxSliders[0] = 100;
+        
+        maxX.label = "Max X";
+        maxX.page = "Filtering";
+        maxX.defaultValues[0] = 5;
+        maxX.minSliders[0] = -100;
+        maxX.maxSliders[0] = 100;
+        
+        minY.label = "Min Y";
+        minY.page = "Filtering";
+        minY.defaultValues[0] = -5;
+        minY.minSliders[0] = -100;
+        minY.maxSliders[0] = 100;
+        
+        maxY.label = "Max Y";
+        maxY.page = "Filtering";
+        maxY.defaultValues[0] = 5;
+        maxY.minSliders[0] = -100;
+        maxY.maxSliders[0] = 100;
+        
+        minZ.label = "Min Z";
+        minZ.page = "Filtering";
+        minZ.defaultValues[0] = -5;
+        minZ.minSliders[0] = -100;
+        minZ.maxSliders[0] = 100;
+        
+        maxZ.label = "Max Z";
+        maxZ.page = "Filtering";
+        maxZ.defaultValues[0] = 5;
+        maxZ.minSliders[0] = -100;
+        maxZ.maxSliders[0] = 100;
+        
+        filterToggle.label = "Filter";
+        filterToggle.page = "Filtering";
+        
+        OP_ParAppendResult res = manager->appendToggle(filterToggle);
+        assert(res == OP_ParAppendResult::Success);
+        res = manager->appendInt(minX);
+        assert(res == OP_ParAppendResult::Success);
+        res = manager->appendInt(maxX);
+        assert(res == OP_ParAppendResult::Success);
+        res = manager->appendInt(minY);
+        assert(res == OP_ParAppendResult::Success);
+        res = manager->appendInt(maxY);
+        assert(res == OP_ParAppendResult::Success);
+        res = manager->appendInt(minZ);
+        assert(res == OP_ParAppendResult::Success);
+        res = manager->appendInt(maxZ);
+        assert(res == OP_ParAppendResult::Success);
+    }
 }
 
 //******************************************************************************
@@ -327,6 +424,14 @@ void
 OPT_CHOP::checkInputs(const CHOP_Output *, OP_Inputs *inputs, void *)
 {
     
+    bool filteringEnabled = inputs->getParInt(PAR_FILTERTOGGLE);
+    
+    inputs->enablePar(PAR_MINX, filteringEnabled);
+    inputs->enablePar(PAR_MAXX, filteringEnabled);
+    inputs->enablePar(PAR_MINY, filteringEnabled);
+    inputs->enablePar(PAR_MAXY, filteringEnabled);
+    inputs->enablePar(PAR_MINZ, filteringEnabled);
+    inputs->enablePar(PAR_MAXZ, filteringEnabled);
 }
 
 void
