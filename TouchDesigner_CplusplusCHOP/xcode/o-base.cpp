@@ -21,7 +21,7 @@ using namespace std;
 using namespace chrono;
 
 OBase::OBase(int msgBundleSize, int portnum):
-msgBundleSize_(msgBundleSize), portnum_(portnum),
+msgBundleSize_(msgBundleSize),
 seq_(0)
 {}
 

@@ -38,6 +38,7 @@ protected:
     
     virtual void processingError(std::string m) {}
     
+    int seq_;
     std::atomic<bool> queueBusy_;
     std::mutex messagesMutex_;
     // dictionary of collected messages
@@ -46,7 +47,7 @@ protected:
     
     
 private:
-    int msgBundleSize_, portnum_, seq_;
+    int msgBundleSize_;
     
     
     std::mutex documentQueueMutex_;

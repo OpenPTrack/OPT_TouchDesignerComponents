@@ -9,6 +9,21 @@
 #ifndef defines_h
 #define defines_h
 
+#define OPT_JSON_HEADER         "header"
+#define OPT_JSON_FRAMEID        "frame_id"
+#define OPT_JSON_HEARTBEAT      "heartbeat"
+#define OPT_JSON_WORLD          "world"
+#define OPT_JSON_ALIVEIDS       "alive_IDs"
+#define OPT_JSON_MAXID          "max_ID"
+#define OPT_JSON_PEOPLE_TRACKS  "people_tracks"
+#define OPT_JSON_OBJECT_TRACKS  "object_tracks"
+#define OPT_JSON_AGE            "age"
+#define OPT_JSON_CONFIDENCE     "confidence"
+#define OPT_JSON_X              "x"
+#define OPT_JSON_Y              "y"
+#define OPT_JSON_HEIGHT         "height"
+#define OPT_JSON_ID             "id"
+
 #define OM_JSON_HEADER          "header"
 #define OM_JSON_SEQ             "seq"
 #define OM_JSON_IDS             "ids"

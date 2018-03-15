@@ -30,8 +30,6 @@
 #include "JsonSocketReader.hpp"
 #include "o-base.hpp"
 
-#define BUFLEN 65507
-
 class OmJsonParser;
 
 class OM_CHOP : public CHOP_CPlusPlusBase,
@@ -87,10 +85,8 @@ private:
     
     const OP_NodeInfo *myNodeInfo;
     
-    int seq_;
     uint64_t nAliveIds_, nBlankRuns_, nClusters_;
     std::shared_ptr<OmJsonParser> omJsonParser_;
-    std::vector<int> lastAliveIds_;
     
     void setupSocketReader();
     void processingError(std::string m) override;

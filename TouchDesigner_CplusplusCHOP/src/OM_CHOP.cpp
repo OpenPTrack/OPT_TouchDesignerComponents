@@ -52,6 +52,26 @@
 #define PAIRWISE_HEIGHT (PAIRWISE_MAXDIM)
 #define PAIRWISE_SIZE ((PAIRWISE_WIDTH)*PAIRWISE_HEIGHT)
 
+#define NPAR_OUTPUT 9
+#define PAR_OUTPUT  "Output"
+#define PAR_REINIT  "Init"
+#define PAR_PORTNUM "Portnum"
+#define PAR_MAXTRACKED "Maxtracked"
+#define PAR_CLUSTERID "Clusterid"
+
+#define SET_CHOP_ERROR(errexpr) {\
+stringstream msg; \
+errexpr; \
+if (errorMessage_ == "") errorMessage_ = msg.str(); \
+printf("%s\n", msg.str().c_str());\
+}
+
+#define SET_CHOP_WARN(errexpr) {\
+stringstream msg; \
+errexpr; \
+if (warningMessage_ == "") warningMessage_ = msg.str(); \
+}
+
 using namespace std;
 using namespace chrono;
 
@@ -61,13 +81,6 @@ static const char* ClusterOutNames[4] = { "x", "y", "spread", "size" };
 static const char* ClusterIdsOutNames[3] = { "id", "x", "y"};
 static const char* HotspotsOutNames[3] = { "x", "y", "spread"};
 static const char* GroupTargetNames[4] = { "val", "x", "y", "z"};
-
-#define NPAR_OUTPUT 9
-#define PAR_OUTPUT  "Output"
-#define PAR_REINIT  "Init"
-#define PAR_PORTNUM "Portnum"
-#define PAR_MAXTRACKED "Maxtracked"
-#define PAR_CLUSTERID "Clusterid"
 
 static const char *menuNames[] = { "Derivatives", "Pairwise", "Dtw", "Clusters", "Clusterids", "Hotspots", "Pca", "Stagedist", "Templates" };
 static const char *labels[] = { "Derivatives", "Pairwise matrix", "Path similarity", "Clusters", "Cluster IDs", "Hotspots", "Group target", "Stage Distances", "Templates" };
@@ -97,18 +110,7 @@ static map<OM_CHOP::OutChoice, string> OutputSubtypeMap = {
     { OM_CHOP::OutChoice::Templates, OM_JSON_SUBTYPE_SIM }
 };
 
-#define SET_CHOP_ERROR(errexpr) {\
-stringstream msg; \
-errexpr; \
-if (errorMessage_ == "") errorMessage_ = msg.str(); \
-printf("%s\n", msg.str().c_str());\
-}
-
-#define SET_CHOP_WARN(errexpr) {\
-stringstream msg; \
-errexpr; \
-if (warningMessage_ == "") warningMessage_ = msg.str(); \
-}
+static shared_ptr<JsonSocketReader> SocketReader;
 
 //Required functions.
 extern "C"
@@ -138,8 +140,6 @@ extern "C"
     }
 };
 
-static shared_ptr<JsonSocketReader> SocketReader;
-
 string bundleToString(const vector<rapidjson::Document>& bundle)
 {
     stringstream ss;
@@ -160,7 +160,6 @@ string bundleToString(const vector<rapidjson::Document>& bundle)
 //******************************************************************************
 OM_CHOP::OM_CHOP(const OP_NodeInfo * info):
 OBase(OPENMOVES_MSG_BUNDLE, PORTNUM),
-seq_(0),
 errorMessage_(""), warningMessage_(""),
 outChoice_(Derivatives),
 nAliveIds_(0),nClusters_(0),
@@ -177,7 +176,6 @@ OM_CHOP::~OM_CHOP()
 
 void OM_CHOP::getGeneralInfo(CHOP_GeneralInfo * ginfo)
 {
-    //Forces check on socket each time TouchDesigner cooks.
     ginfo->cookEveryFrame = true;
 }
 

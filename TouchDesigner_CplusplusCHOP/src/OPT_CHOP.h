@@ -1,7 +1,14 @@
-#pragma once
+//
+//  OPT_CHOP.hpp
+//  OPT_CHOP
+//
+//  Created by Peter Gusev on 3/15/18.
+//  Copyright © 2018 UCLA. All rights reserved.
+//
 
-#define BUFLEN 65507
-#include "CHOP_CPlusPlusBase.h"
+#ifndef OPT_CHOP_hpp
+#define OPT_CHOP_hpp
+
 #include <map>
 #include <vector>
 #include <set>
@@ -15,11 +22,13 @@
     #include <netinet/ip.h>
 #endif
 
-class OPT_CHOP : public CHOP_CPlusPlusBase
+#include "CHOP_CPlusPlusBase.h"
+#include "o-base.hpp"
+
+class OPT_CHOP : public CHOP_CPlusPlusBase,
+public OBase
 {
 public:
-
-
 	OPT_CHOP(const OP_NodeInfo * info);
 
 	virtual ~OPT_CHOP();
@@ -52,25 +61,19 @@ private:
     std::string errorMessage_, warningMessage_;
     
 	const OP_NodeInfo *myNodeInfo;
-	char buf[BUFLEN];
-	bool listening;
-	int seq;
-	const char* names[7] = { "id", "isAlive", "age", "confidence", "x", "y", "height"};
-	std::map<float, std::vector<float>> data;
+    
+    uint64_t heartbeat_, maxId_, nAliveIds_, nBlankRuns_;
+    
+    void setupSocketReader();
+    void processingError(std::string m) override;
+    
+    void checkInputs(const CHOP_Output *, OP_Inputs *inputs, void *);
+    void blankRunsTrigger();
+    
+//    char buf[BUFLEN];
+    std::map<float, std::vector<float>> data;
     std::set<int> aliveIds_;
 
-    #ifdef WIN32
-	SOCKET s;
-    WSADATA wsa;
-	int slen;
-    #else
-    int s;
-	unsigned int slen;
-    #endif
-	
-    struct sockaddr_in server, si_other;
-    int recv_len;
-    uint64_t heartbeat, maxId;
 };
 
-
+#endif
