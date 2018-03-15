@@ -28,12 +28,14 @@
 
 #include "CHOP_CPlusPlusBase.h"
 #include "JsonSocketReader.hpp"
+#include "o-base.hpp"
 
 #define BUFLEN 65507
 
 class OmJsonParser;
 
-class OM_CHOP : public CHOP_CPlusPlusBase, public JsonSocketReader::ISlaveReceiver
+class OM_CHOP : public CHOP_CPlusPlusBase,
+public OBase
 {
 public:
     typedef enum _OutChoice {
@@ -79,17 +81,7 @@ public:
     }
     
 private:
-    
     std::string errorMessage_, warningMessage_;
-    
-    std::atomic<bool> queueBusy_;
-    std::mutex documentQueueMutex_;
-    std::queue<rapidjson::Document> documentQueue_;
-    
-    // dictionary of collected messages
-    typedef std::map<int, std::pair<double, std::vector<rapidjson::Document>>> MessagesQueue;
-    std::mutex messagesMutex_;
-    MessagesQueue messages_;
     
     OutChoice outChoice_;
     
@@ -97,70 +89,11 @@ private:
     
     int seq_;
     uint64_t nAliveIds_, nBlankRuns_, nClusters_;
-//    float *pairwiseMat_, *dtwMat_;
     std::shared_ptr<OmJsonParser> omJsonParser_;
     std::vector<int> lastAliveIds_;
     
     void setupSocketReader();
-    
-    void onNewJsonObjectReceived(const rapidjson::Document&) override;
-    void onSocketReaderError(const std::string&) override;
-    void onSocketReaderWillReset() override;
-    
-    void processQueue();
-    
-    // outputs:
-    // - id order
-    // - derivatives
-    // - dwt distances
-    // - pairwise matrix
-    // - clusters
-    // - stage distances
-    // - hotspots
-    // - dtw
-//    void processMessages(std::vector<rapidjson::Document>& messages,
-//                         std::vector<int>& idOrder,
-//                         std::map<int, std::pair<float,float>>& derivatives1,
-//                         std::map<int, std::pair<float,float>>& derivatives2,
-//                         std::map<int, float>& speeds,
-//                         std::map<int, float>& accelerations,
-//                         float* pairwiseMatrix,
-//                         std::vector<std::vector<float>>& clustersData,
-//                         std::map<int, std::vector<float>>& stageDistances,
-//                         std::vector<std::vector<float>>& hotspotsData,
-//                         float* dtwMatrix,
-//                         std::vector<std::vector<float>>& groupTarget,
-//                         std::map<std::string, std::vector<float>>& templates);
-//    void processIdOrder(std::vector<rapidjson::Document>& messages,
-//                        std::vector<int>& idOrder);
-//    void processDerivatives(std::vector<rapidjson::Document>& messages,
-//                            std::vector<int>& idOrder,
-//                            std::map<int, std::pair<float,float>>& derivatives1,
-//                            std::map<int, std::pair<float,float>>& derivatives2,
-//                            std::map<int, float>& speeds,
-//                            std::map<int, float>& accelerations);
-//    void processPairwise(std::vector<rapidjson::Document>& messages,
-//                         std::vector<int>& idOrder,
-//                         float* pairwiseMatrix);
-//    void processClusters(std::vector<rapidjson::Document>& messages,
-//                         std::vector<std::vector<float>>& clustersData);
-//    void processStageDistances(std::vector<rapidjson::Document>& messages,
-//                               std::vector<int>& idOrder,
-//                               std::map<int, std::vector<float>>& stageDistances);
-//    void processHotspots(std::vector<rapidjson::Document>& messages,
-//                         std::vector<std::vector<float>>& hotspotsData);
-//    void processDtw(std::vector<rapidjson::Document>& messages,
-//                    std::vector<int>& idOrder,
-//                    float* dtwMatrix);
-//    void processGroupTarget(std::vector<rapidjson::Document>& messages,
-//                            std::vector<std::vector<float>>& groupTarget);
-//    void processTemplates(std::vector<rapidjson::Document>& messages,
-//                          std::vector<int>& idOrder,
-//                          std::map<std::string, std::vector<float>>& templates);
-//
-//    bool retireve(const std::string& key,
-//                  std::vector<rapidjson::Document>&,
-//                  rapidjson::Value&);
+    void processingError(std::string m) override;
     
     void checkInputs(const CHOP_Output *, OP_Inputs *inputs, void *);
     void blankRunsTrigger();
