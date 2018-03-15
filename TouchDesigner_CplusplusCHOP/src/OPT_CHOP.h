@@ -72,7 +72,7 @@ private:
     
     std::map<float, std::vector<float>> data;
     std::set<int> aliveIds_;
-    std::map<string, int> faceNameMap_;
+    std::map<std::string, int> faceNameMap_;
 };
 
 #endif
