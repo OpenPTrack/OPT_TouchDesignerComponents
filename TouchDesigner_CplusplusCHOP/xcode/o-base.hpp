@@ -16,12 +16,15 @@
 #include <string>
 #include <queue>
 #include <set>
+#include <functional>
 
 #include "JsonSocketReader.hpp"
 
 class OBase : public JsonSocketReader::ISlaveReceiver
 {
 public:
+    typedef std::function<void(std::vector<rapidjson::Document>&)> OnNewBundle;
+    
     OBase(int msgBundleSize, int portnum);
     ~OBase();
     
@@ -29,8 +32,10 @@ protected:
     void onNewJsonObjectReceived(const rapidjson::Document&) override;
     void onSocketReaderError(const std::string&) override;
     void onSocketReaderWillReset() override;
-    
+
     void processQueue();
+    void processBundle(OnNewBundle);
+    
     virtual void processingError(std::string m) {}
     
     std::atomic<bool> queueBusy_;
@@ -39,8 +44,9 @@ protected:
     typedef std::map<int, std::pair<double, std::vector<rapidjson::Document>>> MessagesQueue;
     MessagesQueue messages_;
     
+    
 private:
-    int msgBundleSize_, portnum_;
+    int msgBundleSize_, portnum_, seq_;
     
     
     std::mutex documentQueueMutex_;

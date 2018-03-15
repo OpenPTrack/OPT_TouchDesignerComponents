@@ -44,8 +44,6 @@
 
 #define PORTNUM 21235
 
-#define MESSAGE_QUEUE_THRESHOLD 500
-#define MESSAGE_LIFETIME_MS 2000
 #define OPENMOVES_MSG_BUNDLE 1
 #define BLANK_RUN_THRESHOLD 60
 
@@ -274,74 +272,38 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
 {
     warningMessage_ = "";
     errorMessage_ = "";
-    
-    double nowTs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-    
     checkInputs(output, inputs, reserved);
     processQueue();
+    
     bool blankRun = true;
     
     {
         string bundleStr;
+        shared_ptr<OmJsonParser> parser = omJsonParser_;
+        string subtypeToParse = OutputSubtypeMap[outChoice_];
         
-        if (!queueBusy_)
-        {
-            lock_guard<mutex> lock(messagesMutex_);
-            
-            for (MessagesQueue::iterator it = messages_.begin(); it != messages_.end(); /* NO INCREMENT HERE */)
-            {
-                if ((*it).second.second.size() >= OPENMOVES_MSG_BUNDLE)
-                {
-                    bool oldMessage = ((*it).first < seq_);
-                    vector<rapidjson::Document>& msgs = (*it).second.second;
-                    
-                    bundleStr = bundleToString(msgs);
-                    
-                    if (oldMessage)
-                        SET_CHOP_WARN(msg << "Received old message: seq " << (*it).first << " vs current seq " <<  seq_)
-                    else
-                    {
+        processBundle([&bundleStr, &blankRun, this,
+                       subtypeToParse, parser](vector<rapidjson::Document>& msgs){
 #ifdef PRINT_MESSAGES
-                        for (auto& m:msgs)
-                        {
-                            rapidjson::StringBuffer buffer;
-                            buffer.Clear();
-                            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-                            m.Accept(writer);
-                            cout << "got message: " << buffer.GetString() << endl;
-                        }
+            for (auto& m:msgs)
+            {
+                rapidjson::StringBuffer buffer;
+                buffer.Clear();
+                rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                m.Accept(writer);
+                cout << "got message: " << buffer.GetString() << endl;
+            }
 #endif
-                        string subtypeToParse = OutputSubtypeMap[outChoice_];
-                        set<string> parsedSubtypes;
-                        
-                        if (!omJsonParser_->parse(msgs, parsedSubtypes, subtypeToParse))
-                            SET_CHOP_WARN(msg << "Failed to parse subtype " << subtypeToParse
-                                          << " due to error: " << omJsonParser_->getParseError())
-                        
-                        blankRun = (parsedSubtypes.size() == 0);
-                    }
-                    
-                    seq_ = (*it).first;
-                    messages_.erase(it++);
-                    nAliveIds_ = omJsonParser_->getIdOrder().size();
-                    
-                    break; // we're done here
-                } // if messages bundle
-                else
-                {
-                    // check message timestamp and delete it if it's too old
-                    if (nowTs-(*it).second.first >= MESSAGE_LIFETIME_MS)
-                    {
-                        SET_CHOP_WARN(msg << "Cleaning up old unprocessed message bundle (id " << (*it).first
-                                      << "). This normally should not happen, check incoming messages bundle length. Deleted: "
-                                      << bundleStr)
-                        messages_.erase(it++);
-                    }
-                    else
-                        ++it;
-                }
-            } // for msg in queue
-        } // if queue not busy
+            
+            set<string> parsedSubtypes;
+            
+            if (!parser->parse(msgs, parsedSubtypes, subtypeToParse))
+                SET_CHOP_WARN(msg << "Failed to parse subtype " << subtypeToParse
+                              << " due to error: " << omJsonParser_->getParseError())
+                
+                blankRun = (parsedSubtypes.size() == 0);
+                this->nAliveIds_ = parser->getIdOrder().size();
+        });
         
         switch (outChoice_) {
             case Derivatives:
