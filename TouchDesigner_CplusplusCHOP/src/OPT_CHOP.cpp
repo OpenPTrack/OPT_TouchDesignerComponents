@@ -60,7 +60,7 @@ warningMessage_ = msg.str(); \
 }
 
 #define PORTNUM 21236
-#define NPAR_OUT 7
+#define NPAR_OUT 8
 #define PAR_MAXTRACKED "Maxtracked"
 #define PAR_MINX "Minx"
 #define PAR_MAXX "Maxx"
@@ -238,6 +238,18 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
                                     data.push_back(y);
                                     data.push_back(z);
                                     data.push_back((float)(aliveIds_.find(trackId) != aliveIds_.end()));
+                                    data.push_back(tracks[i].HasMember(OPT_JSON_STABLEID) ? tracks[i][OPT_JSON_STABLEID].GetFloat() : -1);
+                                    
+                                    if (tracks[i].HasMember(OPT_JSON_FACE_NAME))
+                                    {
+                                        if (tracks[i][OPT_JSON_FACE_NAME].IsString())
+                                        {
+                                            string faceName(tracks[i][OPT_JSON_FACE_NAME].GetString());
+                                            faceNameMap_[faceName] = trackId;
+                                        }
+                                        else
+                                            SET_CHOP_WARN(msg << OPT_JSON_FACE_NAME << " is not a string; string expected")
+                                    }
                                     
                                     newTracks.insert_or_assign(trackId, data);
                                 }
@@ -313,21 +325,47 @@ OPT_CHOP::getInfoCHOPChan(int32_t index,
     }
 }
 
+bool
+OPT_CHOP::getInfoDATSize(OP_InfoDATSize *infoSize)
+{
+    infoSize->rows = faceNameMap_.size()+1;
+    infoSize->cols = 2;
+    infoSize->byColumn = false;
+    
+    return true;
+}
+
+void
+OPT_CHOP::getInfoDATEntries(int32_t index, int32_t nEntries, OP_InfoDATEntries *entries)
+{
+    if (index == 0)
+    {
+        entries->values[0] = "face name";
+        entries->values[1] = "track id";
+    }
+    else
+    {
+        map<string, int>::iterator it = faceNameMap_.begin();
+        advance(it, index-1);
+        stringstream ss;
+        ss << it->second;
+        
+        entries->values[0] = (char*)it->first.c_str();
+        entries->values[1] = (char*)ss.str().c_str();
+    }
+}
+
 void OPT_CHOP::setupParameters(OP_ParameterManager* manager) 
 {
     {
-        //Create new parameter
-        OP_NumericParameter MaxTracked;
+        OP_NumericParameter maxTracked(PAR_MAXTRACKED);
         
-        //Parameter details
-        MaxTracked.name = "Maxtracked";
-        MaxTracked.label = "Max Tracked";
-        MaxTracked.page = "General";
-        MaxTracked.defaultValues[0] = 1;
-        MaxTracked.minValues[0] = 1;
+        maxTracked.label = "Max Tracked";
+        maxTracked.page = "General";
+        maxTracked.defaultValues[0] = 1;
+        maxTracked.minValues[0] = 1;
         
-        //Add it to CHOP.
-        OP_ParAppendResult res = manager->appendInt(MaxTracked);
+        OP_ParAppendResult res = manager->appendInt(maxTracked);
         assert(res == OP_ParAppendResult::Success);
     }
     {

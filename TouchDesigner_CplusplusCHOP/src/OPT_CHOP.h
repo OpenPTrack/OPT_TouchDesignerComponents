@@ -44,8 +44,11 @@ public:
     virtual int32_t getNumInfoCHOPChans() override;
     virtual void getInfoCHOPChan(int index,
                                  OP_InfoCHOPChan* chan) override;
-
-	virtual void setupParameters(OP_ParameterManager * manager) override;
+    virtual bool getInfoDATSize(OP_InfoDATSize* infoSize) override;
+    virtual void getInfoDATEntries(int32_t index,
+                                   int32_t nEntries,
+                                   OP_InfoDATEntries* entries) override;
+    virtual void setupParameters(OP_ParameterManager * manager) override;
 
     virtual const char* getWarningString() override
     {
