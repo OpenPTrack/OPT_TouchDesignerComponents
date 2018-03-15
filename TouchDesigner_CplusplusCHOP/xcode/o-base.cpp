@@ -11,18 +11,21 @@
 #include <iostream>
 #include <sstream>
 
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+
 #include "defines.h"
 #include "debug.h"
 
 #define MESSAGE_QUEUE_THRESHOLD 500
 #define MESSAGE_LIFETIME_MS 2000
+#define DEFAULT_FRAMEID "default"
 
 using namespace std;
 using namespace chrono;
 
 OBase::OBase(int msgBundleSize, int portnum):
-msgBundleSize_(msgBundleSize),
-seq_(0)
+msgBundleSize_(msgBundleSize)
 {}
 
 OBase::~OBase()
@@ -122,19 +125,26 @@ OBase::processBundle(OnNewBundle handler)
         {
             if ((*it).second.second.size() >= msgBundleSize_)
             {
-                bool oldMessage = ((*it).first < seq_);
                 vector<rapidjson::Document>& msgs = (*it).second.second;
+                string frameId = retrieveFrameId(msgs[0]);
+                int thisSeqNo = (*it).first;
+                
+                if (seqs_.find(frameId) == seqs_.end())
+                    seqs_[frameId] = (*it).first;
+                
+                bool oldMessage = (thisSeqNo < seqs_[frameId]);
                 
                 if (oldMessage)
                 {
                     stringstream ss;
-                    ss << "Received old message: seq " << (*it).first << " vs current seq " <<  seq_;
+                    ss << "Received old message: seq " << thisSeqNo
+                        << " vs current seq " <<  seqs_[frameId];
                     processingError(ss.str());
                 }
                 else
                     handler(msgs);
                 
-                seq_ = (*it).first;
+                seqs_[frameId] = (*it).first;
                 messages_.erase(it++);
                 
                 break; // we're done here
@@ -155,4 +165,31 @@ OBase::processBundle(OnNewBundle handler)
             }
         } // for msg in queue
     } // if queue not busy
+}
+
+string
+OBase::bundleToString(const vector<rapidjson::Document>& bundle)
+{
+    stringstream ss;
+    
+    for (auto& d:bundle)
+    {
+        rapidjson::StringBuffer buffer;
+        buffer.Clear();
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        d.Accept(writer);
+        
+        ss << buffer.GetString() << endl;
+    }
+    
+    return ss.str();
+}
+
+string
+OBase::retrieveFrameId(const rapidjson::Document &d)
+{
+    if (d.HasMember(OPT_JSON_HEADER) &&
+        d[OPT_JSON_HEADER].HasMember(OPT_JSON_FRAMEID))
+        return string(d[OPT_JSON_HEADER][OPT_JSON_FRAMEID].GetString());
+    return DEFAULT_FRAMEID; // frame ids not supported
 }

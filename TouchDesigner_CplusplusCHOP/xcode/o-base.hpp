@@ -38,20 +38,22 @@ protected:
     
     virtual void processingError(std::string m) {}
     
-    int seq_;
+    // sequence numbers can be per frame id
+    std::map<std::string, int> seqs_;
     std::atomic<bool> queueBusy_;
     std::mutex messagesMutex_;
     // dictionary of collected messages
     typedef std::map<int, std::pair<double, std::vector<rapidjson::Document>>> MessagesQueue;
     MessagesQueue messages_;
     
+    std::string bundleToString(const std::vector<rapidjson::Document>& bundle);
     
 private:
     int msgBundleSize_;
-    
-    
     std::mutex documentQueueMutex_;
     std::queue<rapidjson::Document> documentQueue_;
+    
+    std::string retrieveFrameId(const rapidjson::Document&);
 };
 
 #endif /* o_base_hpp */

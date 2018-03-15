@@ -23,6 +23,8 @@
 #define OPT_JSON_Y              "y"
 #define OPT_JSON_HEIGHT         "height"
 #define OPT_JSON_ID             "id"
+#define OPT_JSON_STABLEID       "stable_id"
+#define OPT_JSON_FACE_NAME      "face_name"
 
 #define OM_JSON_HEADER          "header"
 #define OM_JSON_SEQ             "seq"

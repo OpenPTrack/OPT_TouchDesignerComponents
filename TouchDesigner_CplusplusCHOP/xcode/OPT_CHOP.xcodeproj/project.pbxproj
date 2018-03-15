@@ -10,7 +10,7 @@
 		AF36345D205744FB00D547E6 /* om-json-parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF36345B205744FB00D547E6 /* om-json-parser.cpp */; };
 		AF363464205ACFC500D547E6 /* o-base.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF363462205ACFC500D547E6 /* o-base.cpp */; };
 		AF363465205ACFC500D547E6 /* o-base.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF363462205ACFC500D547E6 /* o-base.cpp */; };
-		AFA994CE204A0DF500B04C98 /* OPT_CHOP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFA994CD204A0DF500B04C98 /* OPT_CHOP.cpp */; };
+		AF363468205B01CC00D547E6 /* OPT_CHOP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF363467205B01CC00D547E6 /* OPT_CHOP.cpp */; };
 		AFA994D0204A184100B04C98 /* OPT_CHOP.plugin in CopyFiles */ = {isa = PBXBuildFile; fileRef = E23329D61DF092AD0002B4FE /* OPT_CHOP.plugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		AFA994D7204B54E100B04C98 /* OM_CHOP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */; };
 		AFA994E1204B5F7900B04C98 /* OM_CHOP.plugin in CopyFiles */ = {isa = PBXBuildFile; fileRef = AFA994DF204B54E100B04C98 /* OM_CHOP.plugin */; };
@@ -46,12 +46,12 @@
 		AF36345C205744FB00D547E6 /* om-json-parser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = "om-json-parser.hpp"; path = "../src/om-json-parser.hpp"; sourceTree = "<group>"; };
 		AF363462205ACFC500D547E6 /* o-base.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "o-base.cpp"; sourceTree = "<group>"; };
 		AF363463205ACFC500D547E6 /* o-base.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "o-base.hpp"; sourceTree = "<group>"; };
+		AF363466205B01CC00D547E6 /* OPT_CHOP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OPT_CHOP.h; path = ../src/OPT_CHOP.h; sourceTree = "<group>"; };
+		AF363467205B01CC00D547E6 /* OPT_CHOP.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OPT_CHOP.cpp; path = ../src/OPT_CHOP.cpp; sourceTree = "<group>"; };
 		AF7DCA51204EDBB800B54885 /* defines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = defines.h; path = ../src/defines.h; sourceTree = "<group>"; };
 		AF7DCA52204EDC6800B54885 /* debug.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = debug.h; path = ../src/debug.h; sourceTree = "<group>"; };
 		AFA994CA204A0DDC00B04C98 /* CHOP_CPlusPlusBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CHOP_CPlusPlusBase.h; path = ../vs/OPT_CHOP/OPT_CHOP/CHOP_CPlusPlusBase.h; sourceTree = "<group>"; };
 		AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CPlusPlus_Common.h; path = ../vs/OPT_CHOP/OPT_CHOP/CPlusPlus_Common.h; sourceTree = "<group>"; };
-		AFA994CC204A0DF500B04C98 /* OPT_CHOP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OPT_CHOP.h; path = ../vs/OPT_CHOP/OPT_CHOP/OPT_CHOP.h; sourceTree = "<group>"; };
-		AFA994CD204A0DF500B04C98 /* OPT_CHOP.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OPT_CHOP.cpp; path = ../vs/OPT_CHOP/OPT_CHOP/OPT_CHOP.cpp; sourceTree = "<group>"; };
 		AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OM_CHOP.cpp; path = ../src/OM_CHOP.cpp; sourceTree = "<group>"; };
 		AFA994D2204B547F00B04C98 /* OM_CHOP.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = OM_CHOP.hpp; path = ../src/OM_CHOP.hpp; sourceTree = "<group>"; };
 		AFA994DF204B54E100B04C98 /* OM_CHOP.plugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OM_CHOP.plugin; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -92,6 +92,7 @@
 		AF36345F2057451500D547E6 /* common */ = {
 			isa = PBXGroup;
 			children = (
+				AF7DCA51204EDBB800B54885 /* defines.h */,
 				AFA994CA204A0DDC00B04C98 /* CHOP_CPlusPlusBase.h */,
 				AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */,
 				AF363462205ACFC500D547E6 /* o-base.cpp */,
@@ -103,8 +104,8 @@
 		AF3634602057451F00D547E6 /* opt */ = {
 			isa = PBXGroup;
 			children = (
-				AFA994CD204A0DF500B04C98 /* OPT_CHOP.cpp */,
-				AFA994CC204A0DF500B04C98 /* OPT_CHOP.h */,
+				AF363467205B01CC00D547E6 /* OPT_CHOP.cpp */,
+				AF363466205B01CC00D547E6 /* OPT_CHOP.h */,
 				E23329D91DF092AD0002B4FE /* Info.plist */,
 			);
 			name = opt;
@@ -115,7 +116,6 @@
 			children = (
 				AF36345E2057450300D547E6 /* om json parser */,
 				AF7DCA52204EDC6800B54885 /* debug.h */,
-				AF7DCA51204EDBB800B54885 /* defines.h */,
 				AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */,
 				AFA994D2204B547F00B04C98 /* OM_CHOP.hpp */,
 				AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */,
@@ -258,8 +258,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				AF363464205ACFC500D547E6 /* o-base.cpp in Sources */,
-				AFA994CE204A0DF500B04C98 /* OPT_CHOP.cpp in Sources */,
 				AFA994E4204CF63B00B04C98 /* JsonSocketReader.cpp in Sources */,
+				AF363468205B01CC00D547E6 /* OPT_CHOP.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,5 +1,12 @@
-    //Copyright (c) 2017-2016 Ian Shelanskey ishelanskey@gmail.com
-//All rights reserved.
+//
+//  OPT_CHOP.hpp
+//  OPT_CHOP
+//
+//  Created by Peter Gusev on 3/15/18.
+//
+//  Copyright (c) 2017-2016 Ian Shelanskey ishelanskey@gmail.com
+//  Copyright © 2018 UCLA. All rights reserved.
+//
 
 #include <vector>
 #include <map>
@@ -58,7 +65,7 @@ warningMessage_ = msg.str(); \
 
 using namespace std;
 
-static const char* ChanNames[7] = { "id", "isAlive", "age", "confidence", "x", "y", "height"};
+static const char* ChanNames[7] = { "id", "age", "confidence", "x", "y", "height", "isAlive"};
 
 static shared_ptr<JsonSocketReader> SocketReader;
 
@@ -128,14 +135,17 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
     errorMessage_ = "";
     checkInputs(output, inputs, reserved);
     processQueue();
+    
+    map<int, vector<float>> newTracks;
 
     bool blankRun = true;
     
     {
-        processBundle([this, output](vector<rapidjson::Document>& msgs){
-            
+        processBundle([this, output, &blankRun, &newTracks](vector<rapidjson::Document>& msgs){
             if (msgs.size() == 0)
                 return ;
+            
+            string bundleStr = bundleToString(msgs);
             
             // for OPT, expecting bundle size of 1 message only
             rapidjson::Document& d = msgs[0];
@@ -150,12 +160,14 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
                     heartbeat_++;
                     
                     if (!d.HasMember(OPT_JSON_MAXID))
-                        SET_CHOP_WARN(msg << "can't find " << OPT_JSON_MAXID << " field in heartbeat message")
+                        SET_CHOP_WARN(msg << "can't find " << OPT_JSON_MAXID
+                                      << " field in heartbeat message")
                     else
                         maxId_ = d[OPT_JSON_MAXID].GetInt();
                         
                     if (!d.HasMember(OPT_JSON_ALIVEIDS))
-                        SET_CHOP_WARN(msg << "can't find " << OPT_JSON_ALIVEIDS << " field in heartbead message")
+                        SET_CHOP_WARN(msg << "can't find " << OPT_JSON_ALIVEIDS
+                                      << " field in heartbeat message: " << bundleStr)
                     else
                     {
                         aliveIds_.clear();
@@ -168,118 +180,73 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
                 } // if heartbeat
                 else
                 {
-                    if (d.HasMember("people_tracks"))
+                    if (frameId == OPT_JSON_WORLD &&
+                        d.HasMember(OPT_JSON_PEOPLE_TRACKS) &&
+                        d[OPT_JSON_PEOPLE_TRACKS].IsArray())
                     {
                         vector<float> NewTracks;
-                        const rapidjson::Value& tracks = d["people_tracks"].GetArray();
+                        const rapidjson::Value& tracks = d[OPT_JSON_PEOPLE_TRACKS].GetArray();
                         
                         //For each new track.
                         for (rapidjson::SizeType i = 0; i < tracks.Size(); i++)
                         {
-                            //Create a vector of new tracks data.
-                            std::vector<float> incoming = {
-                                float(tracks[i]["age"].GetFloat()),
-                                float(tracks[i]["confidence"].GetFloat()),
-                                float(tracks[i]["x"].GetFloat()),
-                                float(tracks[i]["y"].GetFloat()),
-                                float(tracks[i]["height"].GetFloat()) };
-                            
-                            //Get id of track.
-                            float newid = float(tracks[i]["id"].GetInt());
-                            
-                            //Add id to vector of ids to use in find and replace operation later.
-                            NewTracks.push_back(newid);
-                            
-                            //Map data to its id.
-                            data.insert_or_assign(newid, incoming);
-                        } // for
-                        
-                        
-                        //Create counters for ID matching and sorting.
-                        int offset = 0; //New data
-                        int i = 0; //Old data
-                        
-                        //Go through each Track ID.
-                        while(offset < NewTracks.size())
-                        {
-                            //Find tracks not being used.
-                            if (i < output->numSamples) {
-                                //If the previous track is not in the new frame of data.
-                                if (NewTracks[offset] != output->channels[0][i]) {
-                                    //Change its id to -1.
-                                    output->channels[0][i] = -1;
-                                    //Increase old track counter.
-                                    i++;
-                                    continue;
-                                }
-                                else {
-                                    //We are still tracking this old ID.
-                                    i++;
-                                    offset++;
-                                }
+                            if (!tracks[i].HasMember(OPT_JSON_ID))
+                                SET_CHOP_WARN(msg << "track doesn't have " << OPT_JSON_ID << " field")
+                            else
+                            {
+                                int trackId = tracks[i][OPT_JSON_ID].GetInt();
+                                vector<float> data;
+                                
+                                data.push_back((float)trackId);
+                                data.push_back(tracks[i].HasMember(OPT_JSON_AGE) ? tracks[i][OPT_JSON_AGE].GetFloat() : -1);
+                                data.push_back(tracks[i].HasMember(OPT_JSON_CONFIDENCE) ? tracks[i][OPT_JSON_CONFIDENCE].GetFloat() : -1);
+                                data.push_back(tracks[i].HasMember(OPT_JSON_X) ? tracks[i][OPT_JSON_X].GetFloat() : -1);
+                                data.push_back(tracks[i].HasMember(OPT_JSON_Y) ? tracks[i][OPT_JSON_Y].GetFloat() : -1);
+                                data.push_back(tracks[i].HasMember(OPT_JSON_HEIGHT) ? tracks[i][OPT_JSON_HEIGHT].GetFloat() : -1);
+                                data.push_back((float)(aliveIds_.find(trackId) != aliveIds_.end()));
+                                
+                                newTracks.insert_or_assign(trackId, data);
                             }
-                            else {
-                                //Look for any ids that are -1 to replace with overflow track data.
-                                float * p;
-                                p = std::find(output->channels[0], output->channels[0]+output->numSamples, -1);
-                                if (p == output->channels[0] + output->numSamples) {
-                                    //There are no empty slots for new data.
-                                    break;
-                                }
-                                else {
-                                    //Replace empty slot with overflow track data.
-                                    if (NewTracks.size() - offset > 0 ) {
-                                        //TODO add filters - age, confidence.
-                                        *p = NewTracks[offset];
-                                    }
-                                    else {
-                                        //No overflow track data exists. Leave them as -1.
-                                        break;
-                                    }
-                                }
-                                offset++;
-                            }
-                        } // while
+                        } // for tracks
                         
-                        //Iterate through IDs.
-                        for (int i = 0; i < output->numSamples; i++) {
-                            float lookupid = output->channels[0][i];
-                            
-                            if (lookupid < 0) {
-                                //Set any open slots to 0.
-                                output->channels[1][i] = 0;
-                                output->channels[2][i] = 0;
-                                output->channels[3][i] = 0;
-                                output->channels[4][i] = 0;
-                                output->channels[5][i] = 0;
-                                output->channels[6][i] = 0;
-                            }
-                            else {
-                                if (data.find(lookupid) != data.end())
-                                {
-                                    //Lookup track data based on ID in data map.
-                                    output->channels[1][i] = (float)(aliveIds_.find(lookupid) != aliveIds_.end()); // isAlive
-                                    output->channels[2][i] = data[lookupid][0]; //age
-                                    output->channels[3][i] = data[lookupid][1]; //confidence
-                                    output->channels[4][i] = data[lookupid][3]; //x
-                                    output->channels[5][i] = data[lookupid][4]; //y
-                                    output->channels[6][i] = data[lookupid][5]; //height
-                                }
-                            }
-                        } // for
-                    }
-                }
+                        blankRun = false;
+                    } // if not world frameid
+                    else
+                        SET_CHOP_WARN(msg << "no " << OPT_JSON_PEOPLE_TRACKS
+                                      << " field or it's not a list in incoming message: " << bundleStr)
+                } // if not heartbeat
             }
             else
                 SET_CHOP_WARN(msg << "can't locate " << OPT_JSON_FRAMEID << " field")
         });
+        
+        if (!blankRun)
+        {
+            map<int, vector<float>>::iterator it = newTracks.begin();
+            for (int i = 0; i < output->numSamples; i++) {
+                
+                if (it != newTracks.end())
+                    assert(it->second.size() == NPAR_OUT);
+                
+                for (int chanIdx = 0; chanIdx < output->numChannels; ++chanIdx)
+                    if (it != newTracks.end() && chanIdx < it->second.size())
+                    {
+                        output->channels[chanIdx][i] = it->second[chanIdx];
+                    }
+                    else
+                        output->channels[chanIdx][i] = 0;
+                
+                if (it != newTracks.end())
+                    it++;
+            } // for i
+        }
     }
 }
 
 int32_t
 OPT_CHOP::getNumInfoCHOPChans()
 {
-    return 2; // hearbeat, max id
+    return 2+(int32_t)seqs_.size(); // hearbeat, max id
 }
 
 void
@@ -298,10 +265,16 @@ OPT_CHOP::getInfoCHOPChan(int32_t index,
         chan->value = (float)maxId_;
     }
     
-    if (index == 2)
+    if (index >= 2)
     {
-        chan->name = "seq";
-        chan->value = (float)seq_;
+        stringstream ss;
+        map<string, int>::iterator it = seqs_.begin();
+        
+        advance(it, index-2);
+        ss << "seq_" << it->first;
+        
+        chan->name = ss.str().c_str();
+        chan->value = it->second;
     }
 }
 
@@ -320,7 +293,6 @@ void OPT_CHOP::setupParameters(OP_ParameterManager* manager)
 	//Add it to CHOP.
     OP_ParAppendResult res = manager->appendInt(MaxTracked);
     assert(res == OP_ParAppendResult::Success);
-
 }
 
 //******************************************************************************

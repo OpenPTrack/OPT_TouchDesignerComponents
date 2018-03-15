@@ -140,23 +140,6 @@ extern "C"
     }
 };
 
-string bundleToString(const vector<rapidjson::Document>& bundle)
-{
-    stringstream ss;
-    
-    for (auto& d:bundle)
-    {
-        rapidjson::StringBuffer buffer;
-        buffer.Clear();
-        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        d.Accept(writer);
-        
-        ss << buffer.GetString() << endl;
-    }
-    
-    return ss.str();
-}
-
 //******************************************************************************
 OM_CHOP::OM_CHOP(const OP_NodeInfo * info):
 OBase(OPENMOVES_MSG_BUNDLE, PORTNUM),
