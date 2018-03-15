@@ -69,6 +69,7 @@ static const char* GroupTargetNames[4] = { "val", "x", "y", "z"};
 #define PAR_REINIT  "Init"
 #define PAR_PORTNUM "Portnum"
 #define PAR_MAXTRACKED "Maxtracked"
+#define PAR_CLUSTERID "Clusterid"
 
 static const char *menuNames[] = { "Derivatives", "Pairwise", "Dtw", "Clusters", "Clusterids", "Hotspots", "Pca", "Stagedist", "Templates" };
 static const char *labels[] = { "Derivatives", "Pairwise matrix", "Path similarity", "Clusters", "Cluster IDs", "Hotspots", "Group target", "Stage Distances", "Templates" };
@@ -478,10 +479,13 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
                 break;
             case ClusterIds:
             {
-                int clusterIdx = 0;
+                int clusterIdx = inputs->getParInt(PAR_CLUSTERID);
                 for (int sampleIdx = 0; sampleIdx < output->numSamples; sampleIdx++)
                 {
-                    if (sampleIdx < omJsonParser_->getClusterIds().size())
+                    bool hasData = (clusterIdx < omJsonParser_->getClusterIds().size() &&
+                                    sampleIdx < omJsonParser_->getClusterIds()[clusterIdx].size());
+                    
+                    if (hasData)
                     {
                         output->channels[0][sampleIdx] = omJsonParser_->getClusterIds()[clusterIdx][sampleIdx][0];
                         output->channels[1][sampleIdx] = omJsonParser_->getClusterIds()[clusterIdx][sampleIdx][1];
@@ -634,16 +638,25 @@ void OM_CHOP::setupParameters(OP_ParameterManager* manager)
                                                      (const char**)labels);
         assert(res == OP_ParAppendResult::Success);
     
-        OP_NumericParameter MaxTracked;
+        OP_NumericParameter maxTracked(PAR_MAXTRACKED);
         
-        MaxTracked.name = PAR_MAXTRACKED;
-        MaxTracked.label = "Max Tracked";
-        MaxTracked.page = "Output";
-        MaxTracked.defaultValues[0] = 1;
-        MaxTracked.minValues[0] = 1;
-        MaxTracked.maxValues[0] = PAIRWISE_MAXDIM;
+        maxTracked.label = "Max Tracked";
+        maxTracked.page = "Output";
+        maxTracked.defaultValues[0] = 1;
+        maxTracked.minValues[0] = 1;
+        maxTracked.maxValues[0] = PAIRWISE_MAXDIM;
         
-        res = manager->appendInt(MaxTracked);
+        OP_NumericParameter clusterId(PAR_CLUSTERID);
+        
+        clusterId.label = "Cluster Id";
+        clusterId.page = "Output";
+        clusterId.defaultValues[0] = 0;
+        clusterId.minValues[0] = 1;
+        clusterId.maxValues[0] = PAIRWISE_MAXDIM;
+        
+        res = manager->appendInt(maxTracked);
+        assert(res == OP_ParAppendResult::Success);
+        res = manager->appendInt(clusterId);
         assert(res == OP_ParAppendResult::Success);
     }
 }
@@ -759,6 +772,11 @@ OM_CHOP::checkInputs(const CHOP_Output *outputs, OP_Inputs *inputs, void *)
 {
     string outputChoice(inputs->getParString(PAR_OUTPUT));
     outChoice_ = OutputMenuMap[outputChoice];
+    
+    if (outChoice_ == ClusterIds)
+        inputs->enablePar(PAR_CLUSTERID, true);
+    else
+        inputs->enablePar(PAR_CLUSTERID, false);
 }
 
 void
