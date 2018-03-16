@@ -67,7 +67,7 @@ OmJsonParser::~OmJsonParser()
 }
 
 bool
-OmJsonParser::parse(vector<rapidjson::Document> &messages,
+OmJsonParser::parse(vector<rapidjson::Document>& messages,
                     set<string> &parsedSubtypes,
                     string subtype)
 {
@@ -240,7 +240,7 @@ OmJsonParser::processDistances(vector<rapidjson::Document>& messages,
 }
 
 void
-OmJsonParser::processClusters(vector<rapidjson::Document> &messages,
+OmJsonParser::processClusters(vector<rapidjson::Document>& messages,
                               vector<vector<float> > &clustersData,
                               vector<vector<vector<float>>>& clusterIds)
 {
@@ -619,7 +619,7 @@ OmJsonParser::retrieveStageDistances(const rapidjson::Value &document,
 }
 
 bool
-OmJsonParser::hasSubType(vector<rapidjson::Document> &messages,
+OmJsonParser::hasSubType(vector<rapidjson::Document>& messages,
                          string subType,
                          vector<rapidjson::Document> &subtypeMsg) const
 {

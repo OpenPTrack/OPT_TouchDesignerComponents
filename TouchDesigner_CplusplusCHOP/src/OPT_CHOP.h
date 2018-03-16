@@ -1,7 +1,14 @@
-#pragma once
+//
+//  OPT_CHOP.hpp
+//  OPT_CHOP
+//
+//  Created by Peter Gusev on 3/15/18.
+//  Copyright © 2018 UCLA. All rights reserved.
+//
 
-#define BUFLEN 65507
-#include "CHOP_CPlusPlusBase.h"
+#ifndef OPT_CHOP_hpp
+#define OPT_CHOP_hpp
+
 #include <map>
 #include <vector>
 #include <set>
@@ -15,11 +22,13 @@
     #include <netinet/ip.h>
 #endif
 
-class OPT_CHOP : public CHOP_CPlusPlusBase
+#include "CHOP_CPlusPlusBase.h"
+#include "o-base.hpp"
+
+class OPT_CHOP : public CHOP_CPlusPlusBase,
+public OBase
 {
 public:
-
-
 	OPT_CHOP(const OP_NodeInfo * info);
 
 	virtual ~OPT_CHOP();
@@ -35,8 +44,11 @@ public:
     virtual int32_t getNumInfoCHOPChans() override;
     virtual void getInfoCHOPChan(int index,
                                  OP_InfoCHOPChan* chan) override;
-
-	virtual void setupParameters(OP_ParameterManager * manager) override;
+    virtual bool getInfoDATSize(OP_InfoDATSize* infoSize) override;
+    virtual void getInfoDATEntries(int32_t index,
+                                   int32_t nEntries,
+                                   OP_InfoDATEntries* entries) override;
+    virtual void setupParameters(OP_ParameterManager * manager) override;
 
     virtual const char* getWarningString() override
     {
@@ -52,25 +64,19 @@ private:
     std::string errorMessage_, warningMessage_;
     
 	const OP_NodeInfo *myNodeInfo;
-	char buf[BUFLEN];
-	bool listening;
-	int seq;
-	const char* names[7] = { "id", "isAlive", "age", "confidence", "x", "y", "height"};
-	std::map<float, std::vector<float>> data;
+    
+    uint64_t heartbeat_, maxId_, nAliveIds_, nBlankRuns_;
+    
+    void setupSocketReader();
+    void processingError(std::string m) override;
+    
+    void checkInputs(const CHOP_Output *, OP_Inputs *inputs, void *);
+    void blankRunsTrigger();
+    
+    std::map<float, std::vector<float>> data;
     std::set<int> aliveIds_;
-
-    #ifdef WIN32
-	SOCKET s;
-    WSADATA wsa;
-	int slen;
-    #else
-    int s;
-	unsigned int slen;
-    #endif
-	
-    struct sockaddr_in server, si_other;
-    int recv_len;
-    uint64_t heartbeat, maxId;
+    std::map<int, std::vector<float>> lastTracks_;
+    std::map<std::string, int> faceNameMap_;
 };
 
-
+#endif

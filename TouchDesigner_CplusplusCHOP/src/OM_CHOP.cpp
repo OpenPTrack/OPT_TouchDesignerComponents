@@ -44,8 +44,6 @@
 
 #define PORTNUM 21235
 
-#define MESSAGE_QUEUE_THRESHOLD 500
-#define MESSAGE_LIFETIME_MS 2000
 #define OPENMOVES_MSG_BUNDLE 1
 #define BLANK_RUN_THRESHOLD 60
 
@@ -53,6 +51,26 @@
 #define PAIRWISE_WIDTH (PAIRWISE_MAXDIM+1)
 #define PAIRWISE_HEIGHT (PAIRWISE_MAXDIM)
 #define PAIRWISE_SIZE ((PAIRWISE_WIDTH)*PAIRWISE_HEIGHT)
+
+#define NPAR_OUTPUT 9
+#define PAR_OUTPUT  "Output"
+#define PAR_REINIT  "Init"
+#define PAR_PORTNUM "Portnum"
+#define PAR_MAXTRACKED "Maxtracked"
+#define PAR_CLUSTERID "Clusterid"
+
+#define SET_CHOP_ERROR(errexpr) {\
+stringstream msg; \
+errexpr; \
+if (errorMessage_ == "") errorMessage_ = msg.str(); \
+printf("%s\n", msg.str().c_str());\
+}
+
+#define SET_CHOP_WARN(errexpr) {\
+stringstream msg; \
+errexpr; \
+if (warningMessage_ == "") warningMessage_ = msg.str(); \
+}
 
 using namespace std;
 using namespace chrono;
@@ -63,13 +81,6 @@ static const char* ClusterOutNames[4] = { "x", "y", "spread", "size" };
 static const char* ClusterIdsOutNames[3] = { "id", "x", "y"};
 static const char* HotspotsOutNames[3] = { "x", "y", "spread"};
 static const char* GroupTargetNames[4] = { "val", "x", "y", "z"};
-
-#define NPAR_OUTPUT 9
-#define PAR_OUTPUT  "Output"
-#define PAR_REINIT  "Init"
-#define PAR_PORTNUM "Portnum"
-#define PAR_MAXTRACKED "Maxtracked"
-#define PAR_CLUSTERID "Clusterid"
 
 static const char *menuNames[] = { "Derivatives", "Pairwise", "Dtw", "Clusters", "Clusterids", "Hotspots", "Pca", "Stagedist", "Templates" };
 static const char *labels[] = { "Derivatives", "Pairwise matrix", "Path similarity", "Clusters", "Cluster IDs", "Hotspots", "Group target", "Stage Distances", "Templates" };
@@ -99,18 +110,7 @@ static map<OM_CHOP::OutChoice, string> OutputSubtypeMap = {
     { OM_CHOP::OutChoice::Templates, OM_JSON_SUBTYPE_SIM }
 };
 
-#define SET_CHOP_ERROR(errexpr) {\
-stringstream msg; \
-errexpr; \
-if (errorMessage_ == "") errorMessage_ = msg.str(); \
-printf("%s\n", msg.str().c_str());\
-}
-
-#define SET_CHOP_WARN(errexpr) {\
-stringstream msg; \
-errexpr; \
-if (warningMessage_ == "") warningMessage_ = msg.str(); \
-}
+static shared_ptr<JsonSocketReader> SocketReader;
 
 //Required functions.
 extern "C"
@@ -140,28 +140,9 @@ extern "C"
     }
 };
 
-static shared_ptr<JsonSocketReader> SocketReader;
-
-string bundleToString(const vector<rapidjson::Document>& bundle)
-{
-    stringstream ss;
-    
-    for (auto& d:bundle)
-    {
-        rapidjson::StringBuffer buffer;
-        buffer.Clear();
-        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        d.Accept(writer);
-        
-        ss << buffer.GetString() << endl;
-    }
-    
-    return ss.str();
-}
-
 //******************************************************************************
 OM_CHOP::OM_CHOP(const OP_NodeInfo * info):
-seq_(0),
+OBase(OPENMOVES_MSG_BUNDLE, PORTNUM),
 errorMessage_(""), warningMessage_(""),
 outChoice_(Derivatives),
 nAliveIds_(0),nClusters_(0),
@@ -178,7 +159,6 @@ OM_CHOP::~OM_CHOP()
 
 void OM_CHOP::getGeneralInfo(CHOP_GeneralInfo * ginfo)
 {
-    //Forces check on socket each time TouchDesigner cooks.
     ginfo->cookEveryFrame = true;
 }
 
@@ -273,74 +253,38 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
 {
     warningMessage_ = "";
     errorMessage_ = "";
-    
-    double nowTs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-    
     checkInputs(output, inputs, reserved);
     processQueue();
+    
     bool blankRun = true;
     
     {
         string bundleStr;
+        shared_ptr<OmJsonParser> parser = omJsonParser_;
+        string subtypeToParse = OutputSubtypeMap[outChoice_];
         
-        if (!queueBusy_)
-        {
-            lock_guard<mutex> lock(messagesMutex_);
-            
-            for (MessagesQueue::iterator it = messages_.begin(); it != messages_.end(); /* NO INCREMENT HERE */)
-            {
-                if ((*it).second.second.size() >= OPENMOVES_MSG_BUNDLE)
-                {
-                    bool oldMessage = ((*it).first < seq_);
-                    vector<rapidjson::Document>& msgs = (*it).second.second;
-                    
-                    bundleStr = bundleToString(msgs);
-                    
-                    if (oldMessage)
-                        SET_CHOP_WARN(msg << "Received old message: seq " << (*it).first << " vs current seq " <<  seq_)
-                    else
-                    {
+        processBundle([&bundleStr, &blankRun, this,
+                       subtypeToParse, parser](vector<rapidjson::Document>& msgs){
 #ifdef PRINT_MESSAGES
-                        for (auto& m:msgs)
-                        {
-                            rapidjson::StringBuffer buffer;
-                            buffer.Clear();
-                            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-                            m.Accept(writer);
-                            cout << "got message: " << buffer.GetString() << endl;
-                        }
+            for (auto& m:msgs)
+            {
+                rapidjson::StringBuffer buffer;
+                buffer.Clear();
+                rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                m.Accept(writer);
+                cout << "got message: " << buffer.GetString() << endl;
+            }
 #endif
-                        string subtypeToParse = OutputSubtypeMap[outChoice_];
-                        set<string> parsedSubtypes;
-                        
-                        if (!omJsonParser_->parse(msgs, parsedSubtypes, subtypeToParse))
-                            SET_CHOP_WARN(msg << "Failed to parse subtype " << subtypeToParse
-                                          << " due to error: " << omJsonParser_->getParseError())
-                        
-                        blankRun = (parsedSubtypes.size() == 0);
-                    }
-                    
-                    seq_ = (*it).first;
-                    messages_.erase(it++);
-                    nAliveIds_ = omJsonParser_->getIdOrder().size();
-                    
-                    break; // we're done here
-                } // if messages bundle
-                else
-                {
-                    // check message timestamp and delete it if it's too old
-                    if (nowTs-(*it).second.first >= MESSAGE_LIFETIME_MS)
-                    {
-                        SET_CHOP_WARN(msg << "Cleaning up old unprocessed message bundle (id " << (*it).first
-                                      << "). This normally should not happen, check incoming messages bundle length. Deleted: "
-                                      << bundleStr)
-                        messages_.erase(it++);
-                    }
-                    else
-                        ++it;
-                }
-            } // for msg in queue
-        } // if queue not busy
+            
+            set<string> parsedSubtypes;
+            
+            if (!parser->parse(msgs, parsedSubtypes, subtypeToParse))
+                SET_CHOP_WARN(msg << "Failed to parse subtype " << subtypeToParse
+                              << " due to error: " << omJsonParser_->getParseError())
+                
+                blankRun = (parsedSubtypes.size() == 0);
+                this->nAliveIds_ = parser->getIdOrder().size();
+        });
         
         switch (outChoice_) {
             case Derivatives:
@@ -692,79 +636,9 @@ OM_CHOP::setupSocketReader()
 }
 
 void
-OM_CHOP::onNewJsonObjectReceived(const rapidjson::Document &d)
-{
-    errorMessage_ = "";
-    warningMessage_ = "";
-    
-    // check thread safety for vector
-    rapidjson::Document dcopy;
-    dcopy.CopyFrom(d, dcopy.GetAllocator());
-    
-    {
-        lock_guard<mutex> lock(documentQueueMutex_);
-        queueBusy_ = true;
-        documentQueue_.push(move(dcopy));
-        queueBusy_ = false;
-    }
-}
-
-void
-OM_CHOP::onSocketReaderError(const string &m)
+OM_CHOP::processingError(std::string m)
 {
     SET_CHOP_WARN(msg << m)
-}
-
-void
-OM_CHOP::onSocketReaderWillReset()
-{
-    // clear everything and wait for socket reader to be re-created
-}
-
-void
-OM_CHOP::processQueue()
-{
-    double nowTs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-    
-    lock_guard<mutex> lock(documentQueueMutex_);
-    // this function goes over queue and moves them over to messages dict
-    while (documentQueue_.size())
-    {
-        int seqNo = -1;
-        
-        if (documentQueue_.front().HasMember(OM_JSON_SEQ))
-            seqNo = documentQueue_.front()[OM_JSON_SEQ].GetInt(); // deprecated for v1
-        else if (documentQueue_.front().HasMember(OM_JSON_HEADER) &&
-                 documentQueue_.front()[OM_JSON_HEADER].HasMember(OM_JSON_SEQ))
-        {
-            seqNo = documentQueue_.front()[OM_JSON_HEADER][OM_JSON_SEQ].GetInt();
-        }
-        else
-            SET_CHOP_WARN(msg << "Bad json formatting: can't locate 'seq' field")
-        
-        if (seqNo >= 0)
-        {
-            if (messages_.find(seqNo) == messages_.end())
-                messages_[seqNo] = pair<double, vector<rapidjson::Document>>(nowTs, vector<rapidjson::Document>());
-            
-            messages_[seqNo].second.push_back(move(documentQueue_.front()));
-        }
-    
-        documentQueue_.pop();
-#ifdef PRINT_MSG_QUEUE
-        float avgBundleLen = 0;
-        for (auto& t:messages_) avgBundleLen += t.second.second.size();
-        avgBundleLen /= (float)messages_.size();
-        
-        cout << "document queue " << documentQueue_.size() << " messages queue "
-            << messages_.size() << " avg bundle len " << avgBundleLen << endl;
-#endif
-        if (messages_.size() >= MESSAGE_QUEUE_THRESHOLD)
-            SET_CHOP_WARN(msg << "Incoming message queue is too large - " << messages_.size()
-                          << " (data is received, but not processed). Check openmoves message "
-                          "bundle size (current bundle size is "
-                          << OPENMOVES_MSG_BUNDLE << "; was the protocol updated?)")
-    }
 }
 
 void
