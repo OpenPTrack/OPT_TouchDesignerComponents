@@ -529,7 +529,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
 int32_t
 OM_CHOP::getNumInfoCHOPChans()
 {
-    return 3; // aliveIds seq numClusters_
+    return 2+seqs_.size(); 
 }
 
 void
@@ -542,12 +542,19 @@ OM_CHOP::getInfoCHOPChan(int32_t index,
             chan->value = (float)nAliveIds_;
             break;
         case 1:
-            chan->name = "seq";
-            chan->value = (float)seq_;
+			chan->name = "nClusters";
+			chan->value = (float)nClusters_;
             break;
         case 2:
-            chan->name = "nClusters";
-            chan->value = (float)nClusters_;
+		{
+			map<string, int>::iterator it = seqs_.begin();
+			stringstream ss;
+			advance(it, index - 2);
+			ss << "seq_" << it->first;
+
+			chan->name = ss.str().c_str();
+			chan->value = (float)it->second;
+		}
             break;
         default:
             break;

@@ -147,9 +147,15 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
     errorMessage_ = "";
     checkInputs(output, inputs, reserved);
     processQueue();
-    float minX = -MAXFLOAT, maxX = MAXFLOAT,
-          minY = -MAXFLOAT, maxY = MAXFLOAT,
-          minZ = -MAXFLOAT, maxZ = MAXFLOAT;
+#ifdef WIN32
+    float minX = -FLT_MAX, maxX = FLT_MAX,
+          minY = -FLT_MAX, maxY = FLT_MAX,
+          minZ = -FLT_MAX, maxZ = FLT_MAX;
+#else
+	float minX = -MAXFLOAT, maxX = MAXFLOAT,
+		minY = -MAXFLOAT, maxY = MAXFLOAT,
+		minZ = -MAXFLOAT, maxZ = MAXFLOAT;
+#endif
     
     if (inputs->getParInt(PAR_FILTERTOGGLE))
     {

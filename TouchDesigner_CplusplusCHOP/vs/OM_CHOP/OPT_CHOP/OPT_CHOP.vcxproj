@@ -151,6 +151,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\JsonSocketReader.hpp" />
+    <ClInclude Include="..\..\..\src\o-base.hpp" />
     <ClInclude Include="..\..\..\src\om-json-parser.hpp" />
     <ClInclude Include="..\..\..\src\OM_CHOP.hpp" />
     <ClInclude Include="..\..\OPT_CHOP\OPT_CHOP\CHOP_CPlusPlusBase.h" />
@@ -160,6 +161,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\JsonSocketReader.cpp" />
+    <ClCompile Include="..\..\..\src\o-base.cpp" />
     <ClCompile Include="..\..\..\src\om-json-parser.cpp" />
     <ClCompile Include="..\..\..\src\OM_CHOP.cpp" />
   </ItemGroup>
