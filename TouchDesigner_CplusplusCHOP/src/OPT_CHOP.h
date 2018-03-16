@@ -75,6 +75,7 @@ private:
     
     std::map<float, std::vector<float>> data;
     std::set<int> aliveIds_;
+    std::map<int, std::vector<float>> lastTracks_;
     std::map<std::string, int> faceNameMap_;
 };
 

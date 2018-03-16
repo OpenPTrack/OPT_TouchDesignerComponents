@@ -237,6 +237,9 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
                                     data.push_back(x);
                                     data.push_back(y);
                                     data.push_back(z);
+                                    // TODO: figure out this:
+                                    // since heartbeat arrives every N seconds, does it make sense to
+                                    // keep alive IDs array and check incoming IDs against it?
                                     data.push_back((float)(aliveIds_.find(trackId) != aliveIds_.end()));
                                     data.push_back(tracks[i].HasMember(OPT_JSON_STABLEID) ? tracks[i][OPT_JSON_STABLEID].GetFloat() : -1);
                                     
@@ -269,6 +272,17 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
         
         if (!blankRun)
         {
+            // check, whether there are any tracks that still alive but not in newTracks
+            set<int> remainingTracks(aliveIds_);
+            for (auto& p:newTracks)
+                if (remainingTracks.find(p.first) != remainingTracks.end())
+                    remainingTracks.erase(p.first);
+            
+            if (remainingTracks.size())
+                for (auto& id:remainingTracks)
+                    if (lastTracks_[id].size())
+                        newTracks[id] = lastTracks_[id];
+            
             map<int, vector<float>>::iterator it = newTracks.begin();
             for (int i = 0; i < output->numSamples; i++) {
                 
@@ -286,6 +300,8 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
                 if (it != newTracks.end())
                     it++;
             } // for i
+            
+            lastTracks_ = newTracks;
         }
     }
 }
@@ -328,7 +344,7 @@ OPT_CHOP::getInfoCHOPChan(int32_t index,
 bool
 OPT_CHOP::getInfoDATSize(OP_InfoDATSize *infoSize)
 {
-    infoSize->rows = faceNameMap_.size()+1;
+    infoSize->rows = (int32_t)faceNameMap_.size()+1;
     infoSize->cols = 2;
     infoSize->byColumn = false;
     
@@ -340,8 +356,8 @@ OPT_CHOP::getInfoDATEntries(int32_t index, int32_t nEntries, OP_InfoDATEntries *
 {
     if (index == 0)
     {
-        entries->values[0] = "face name";
-        entries->values[1] = "track id";
+        entries->values[0] = (char*)"face name";
+        entries->values[1] = (char*)"track id";
     }
     else
     {
