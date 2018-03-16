@@ -144,8 +144,6 @@ const char* OPT_CHOP::getChannelName(int index, void* reserved)
 
 void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserved)
 {
-    warningMessage_ = "";
-    errorMessage_ = "";
     checkInputs(output, inputs, reserved);
     processQueue();
 #ifdef WIN32
@@ -386,7 +384,10 @@ void OPT_CHOP::setupParameters(OP_ParameterManager* manager)
         maxTracked.label = "Max Tracked";
         maxTracked.page = "General";
         maxTracked.defaultValues[0] = 1;
-        maxTracked.minValues[0] = 1;
+		maxTracked.minValues[0] = 1;
+		maxTracked.maxValues[0] = 25;
+        maxTracked.minSliders[0] = 1;
+		maxTracked.maxSliders[0] = 25;
         
         OP_ParAppendResult res = manager->appendInt(maxTracked);
         assert(res == OP_ParAppendResult::Success);
