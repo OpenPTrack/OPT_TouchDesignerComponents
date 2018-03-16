@@ -59,7 +59,8 @@ errexpr; \
 warningMessage_ = msg.str(); \
 }
 
-#define PORTNUM 21236
+#define PORTNUM 21234
+
 #define NPAR_OUT 8
 #define PAR_MAXTRACKED "Maxtracked"
 #define PAR_MINX "Minx"
