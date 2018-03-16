@@ -285,7 +285,10 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
             
             if (remainingTracks.size())
                 for (auto& id:remainingTracks)
-                    if (lastTracks_[id].size())
+                    if (lastTracks_[id].size() > 5 &&
+                        withinBounds(lastTracks_[id][3], minX, maxX) &&
+                        withinBounds(lastTracks_[id][4], minY, maxY) &&
+                        withinBounds(lastTracks_[id][5], minZ, maxZ))
                         newTracks[id] = lastTracks_[id];
             
             map<int, vector<float>>::iterator it = newTracks.begin();
