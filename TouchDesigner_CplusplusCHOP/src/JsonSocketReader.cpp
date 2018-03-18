@@ -243,6 +243,8 @@ JsonSocketReader::listenSocket()
         else if (recvLen == SOCKET_ERROR && (errno == EWOULDBLOCK || errno == EAGAIN))
 #endif
         {
+            // let's not use this, for now
+            /*
             stringstream ss;
             ss << "No data in socket (" << errno << "): " << strerror(WSAGetLastError());
             
@@ -253,6 +255,7 @@ JsonSocketReader::listenSocket()
                 for (auto slave:slaves_)
                     slave->onSocketReaderError(ss.str());
             }
+            */
         }
     }
 }

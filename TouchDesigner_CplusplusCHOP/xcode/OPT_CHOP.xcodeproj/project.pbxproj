@@ -11,12 +11,23 @@
 		AF363468205B01CC00D547E6 /* OPT_CHOP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF363467205B01CC00D547E6 /* OPT_CHOP.cpp */; };
 		AF36346A205B735100D547E6 /* o-base.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF363469205B735100D547E6 /* o-base.cpp */; };
 		AF36346B205B735100D547E6 /* o-base.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF363469205B735100D547E6 /* o-base.cpp */; };
+		AF36346E205C651B00D547E6 /* OPT_CHOP.plugin in CopyFiles */ = {isa = PBXBuildFile; fileRef = E23329D61DF092AD0002B4FE /* OPT_CHOP.plugin */; };
 		AFA994D0204A184100B04C98 /* OPT_CHOP.plugin in CopyFiles */ = {isa = PBXBuildFile; fileRef = E23329D61DF092AD0002B4FE /* OPT_CHOP.plugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		AFA994D7204B54E100B04C98 /* OM_CHOP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */; };
 		AFA994E1204B5F7900B04C98 /* OM_CHOP.plugin in CopyFiles */ = {isa = PBXBuildFile; fileRef = AFA994DF204B54E100B04C98 /* OM_CHOP.plugin */; };
 		AFA994E4204CF63B00B04C98 /* JsonSocketReader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */; };
 		AFA994E5204CF63B00B04C98 /* JsonSocketReader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AF36346C205C650C00D547E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E23329CE1DF092AD0002B4FE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E23329D51DF092AD0002B4FE;
+			remoteInfo = OPT_CHOP;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		AFA994CF204A183D00B04C98 /* CopyFiles */ = {
@@ -36,6 +47,7 @@
 			dstSubfolderSpec = 0;
 			files = (
 				AFA994E1204B5F7900B04C98 /* OM_CHOP.plugin in CopyFiles */,
+				AF36346E205C651B00D547E6 /* OPT_CHOP.plugin in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,6 +109,8 @@
 				AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */,
 				AF363469205B735100D547E6 /* o-base.cpp */,
 				AF363463205ACFC500D547E6 /* o-base.hpp */,
+				AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */,
+				AFA994E3204CF63B00B04C98 /* JsonSocketReader.hpp */,
 			);
 			name = common;
 			sourceTree = "<group>";
@@ -118,8 +132,6 @@
 				AF7DCA52204EDC6800B54885 /* debug.h */,
 				AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */,
 				AFA994D2204B547F00B04C98 /* OM_CHOP.hpp */,
-				AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */,
-				AFA994E3204CF63B00B04C98 /* JsonSocketReader.hpp */,
 			);
 			name = om;
 			sourceTree = "<group>";
@@ -167,6 +179,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				AF36346D205C650C00D547E6 /* PBXTargetDependency */,
 			);
 			name = OM_CHOP;
 			productName = CPlusPlusCHOPExample;
@@ -264,6 +277,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AF36346D205C650C00D547E6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E23329D51DF092AD0002B4FE /* OPT_CHOP */;
+			targetProxy = AF36346C205C650C00D547E6 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AFA994DD204B54E100B04C98 /* Debug */ = {

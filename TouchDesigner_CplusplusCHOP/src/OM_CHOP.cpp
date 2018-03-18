@@ -53,6 +53,7 @@
 #define PAIRWISE_SIZE ((PAIRWISE_WIDTH)*PAIRWISE_HEIGHT)
 
 #define NPAR_OUTPUT 9
+#define NINFOPAR_OUT 3
 #define PAR_OUTPUT  "Output"
 #define PAR_REINIT  "Init"
 #define PAR_PORTNUM "Portnum"
@@ -75,6 +76,7 @@ if (warningMessage_ == "") warningMessage_ = msg.str(); \
 using namespace std;
 using namespace chrono;
 
+static const char* InfoChanNames[3] = { "aliveIds", "nClusters", "noData" };
 static const char* DerOutNames[7] = { "id", "d1x", "d1y", "d2x", "d2y", "speed", "accel"};
 static const char* StageDistNames[5] = { "id", "us", "ds", "sl", "sr"};
 static const char* ClusterOutNames[4] = { "x", "y", "spread", "size" };
@@ -529,7 +531,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
 int32_t
 OM_CHOP::getNumInfoCHOPChans()
 {
-    return 2+seqs_.size(); 
+    return NINFOPAR_OUT+(int32_t)seqs_.size();
 }
 
 void
@@ -538,14 +540,18 @@ OM_CHOP::getInfoCHOPChan(int32_t index,
 {
     switch (index) {
         case 0:
-            chan->name = "aliveIds";
+            chan->name =  InfoChanNames[index];
             chan->value = (float)nAliveIds_;
             break;
         case 1:
-			chan->name = "nClusters";
+			chan->name = InfoChanNames[index];
 			chan->value = (float)nClusters_;
             break;
         case 2:
+            chan->name = InfoChanNames[index];
+            chan->value = (float)noData_;
+            break;
+        default:
 		{
 			map<string, int>::iterator it = seqs_.begin();
 			stringstream ss;
@@ -555,8 +561,6 @@ OM_CHOP::getInfoCHOPChan(int32_t index,
 			chan->name = ss.str().c_str();
 			chan->value = (float)it->second;
 		}
-            break;
-        default:
             break;
     }
 }

@@ -62,6 +62,7 @@ warningMessage_ = msg.str(); \
 #define PORTNUM 21234
 
 #define NPAR_OUT 8
+#define NINFOPAR_OUT 3
 #define PAR_MAXTRACKED "Maxtracked"
 #define PAR_MINX "Minx"
 #define PAR_MAXX "Maxx"
@@ -74,6 +75,7 @@ warningMessage_ = msg.str(); \
 using namespace std;
 
 static const char* ChanNames[8] = { "id", "age", "confidence", "x", "y", "height", "isAlive", "stableId" };
+static const char* InfoChanNames[3] = { "heartbeat", "maxId", "noData" };
 
 static shared_ptr<JsonSocketReader> SocketReader;
 
@@ -317,35 +319,37 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
 int32_t
 OPT_CHOP::getNumInfoCHOPChans()
 {
-    return 2+(int32_t)seqs_.size(); // hearbeat, max id
+    return NINFOPAR_OUT+(int32_t)seqs_.size(); // hearbeat, max id
 }
 
 void
 OPT_CHOP::getInfoCHOPChan(int32_t index,
                           OP_InfoCHOPChan* chan)
 {
-    if (index == 0)
-    {
-        chan->name = "heartbeat";
-        chan->value = (float)heartbeat_;
-    }
-    
-    if (index == 1)
-    {
-        chan->name = "maxId";
-        chan->value = (float)maxId_;
-    }
-    
-    if (index >= 2)
-    {
-        stringstream ss;
-        map<string, int>::iterator it = seqs_.begin();
-        
-        advance(it, index-2);
-        ss << "seq_" << it->first;
-        
-        chan->name = ss.str().c_str();
-        chan->value = it->second;
+    switch (index) {
+        case 0:
+            chan->name = InfoChanNames[index];
+            chan->value = (float)heartbeat_;
+            break;
+        case 1:
+            chan->name = InfoChanNames[index];
+            chan->value = (float)maxId_;
+            break;
+        case 2:
+            chan->name = InfoChanNames[index];
+            chan->value = (float)noData_;
+            break;
+        default:
+        {
+            map<string, int>::iterator it = seqs_.begin();
+            stringstream ss;
+            advance(it, index-2);
+            ss << "seq_" << it->first;
+            
+            chan->name = ss.str().c_str();
+            chan->value = it->second;
+        }
+            break;
     }
 }
 

@@ -38,6 +38,8 @@ protected:
     
     virtual void processingError(std::string m) {}
     
+    double lastDataTs_;
+    bool noData_;
     // sequence numbers can be per frame id
     std::map<std::string, int> seqs_;
     std::atomic<bool> queueBusy_;

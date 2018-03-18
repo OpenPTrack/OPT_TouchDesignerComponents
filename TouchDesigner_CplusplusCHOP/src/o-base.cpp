@@ -20,12 +20,15 @@
 #define MESSAGE_QUEUE_THRESHOLD 500
 #define MESSAGE_LIFETIME_MS 2000
 #define DEFAULT_FRAMEID "default"
+#define NODATA_THRES    1000     // threshold for no data detection
 
 using namespace std;
 using namespace chrono;
 
 OBase::OBase(int msgBundleSize, int portnum):
-msgBundleSize_(msgBundleSize)
+msgBundleSize_(msgBundleSize),
+lastDataTs_(duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()),
+noData_(false)
 {}
 
 OBase::~OBase()
@@ -65,6 +68,11 @@ OBase::processQueue()
     double nowTs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     
     lock_guard<mutex> lock(documentQueueMutex_);
+    
+    if (nowTs - lastDataTs_ > NODATA_THRES)
+        noData_ = documentQueue_.size() == 0;
+    lastDataTs_ = documentQueue_.size() > 0 ? nowTs : lastDataTs_;
+    
     // this function goes over queue and moves them over to messages dict
     while (documentQueue_.size())
     {
