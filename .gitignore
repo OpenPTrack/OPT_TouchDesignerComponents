@@ -321,3 +321,5 @@ ASALocalRun/
 
 
 xcuserdata/
+!code/vs/OPT_CHOP/x64/Release/OPT_CHOP.dll
+!code/vs/OM_CHOP/x64/Release/OM_CHOP.dll
