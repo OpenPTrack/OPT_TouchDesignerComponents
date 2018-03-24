@@ -55,6 +55,8 @@ In order to build CHOPs manually, find corresponding (OPT or OM) **VS solution**
     
 #### Use
 
+> **NOTE** It is safe to use multiple OPT CHOPs in the network - they don't block each other on UDP socket.
+
 ##### Tracking
 By default, OPT_CHOP is able to output information for 1 track only (i.e. for one person). This can be modified in *"General"* tab of OPT_CHOP by changing *"Max Tracked"* value.
 
@@ -82,3 +84,71 @@ Few rules should be remembered when working with OPT data:
 ##### Filtering
 
 For trimming tracking area to certain values (stage boundaries) one can use *"Filtering"* page of OPT CHOP. It will not output tracks that fall out of boundaries. 
+
+
+### OM_CHOP
+
+> **NOTE** OpenMoves is currently under active development and some data may not be available yet. Please consult with peter [at] remap [dot] ucla [dot] edu if you're not receiving data you exepect from OM_CHOP.
+
+#### Init
+
+- Drop [CPlusPlus CHOP](https://www.derivative.ca/wiki099/index.php?title=CPlusPlus_CHOP) into your network.
+- In *"Plugin Path"* (macOS) or *"DLL Path"* (windows), choose **OM_CHOP.plugin** or **OM_CHOP.dll** respectively.
+    Plugin should load and one shall be able to see 7 channels that correspond to *"Derivatives"* output of OM_CHOP (more on [Outputs](#outputs) below).
+
+Like in OPT_CHOP, one can specify maximum number of tracks to display using *"Max Tracked"* parameter in *"Output"* page of OM_CHOP.
+    
+#### Outputs
+
+OpenMoves calculates many metrics, both instantaneous (like Derivatives) and historical (like Hotspots) and provides a lot of different output. Since different outputs may have different dimensions, one OM_CHOP operator can provide only one type of output, listed below. It is safe to use multiple OM_CHOPs in the network. In fact, it is the only way, if one would like to get data for different outputs. Current output for OM_CHOP can be selected on *"Output"* page.
+
+##### `Derivatives` | *How fast are they moving?*
+
+This outputs instantaneous metrics such as first and second derivatives (described above). Like with OPT_CHOP, tracks are sorted by track `id` (thus, same rules for retrieving data apply):
+
+  - `id` - OpenPTrack track id;
+  - `d1x` - first derivative for x coordinate;
+  - `d1y` - first derivative for y coordinate;
+  - `d2x` - second derivative for x coordinate;
+  - `d2y` - second derivative for y coordinate;
+  - `speed` - first derivative scalar value (speed); 
+  - `accel` - second derivative scalar value (accleration).
+
+##### `Clusters` | *Are there any groups?*
+
+This outputs instantaneous information about calculated clusters for the current crowd:
+
+ - `x` - x coordinate of cluster center;
+ - `y` - y coordinate of cluster cneter;
+ - `spread` - spread of a cluster (in meters);
+ - `size` - size of a cluster (number of people in a cluster).
+ 
+See **[cluster_vizualizer.tox](toxes/cluster_vizualizer.tox)** for an example of how *"Cluster"* output can be used.
+
+##### `Cluster IDs` | *Who's in the group?*
+
+This outputs person tracks for each individual cluster in *Cluster* output. When this output is selected, *"Cluster Id"* parameter becomes active. This parameter is an index in a table of clusters provided by *"Clusters"* output.
+
+ - `id` - track id;
+ - `x` - current x coordinate of a track (person) belonging to the cluster, identified by *"Cluster Id"*;
+ - `y` - current y coordinate of a track (person) belonging to the cluster, identified by *"Cluster Id"*.
+
+See **[cluster_vizualizer.tox](toxes/cluster_vizualizer.tox)** for an example of how *"Cluster Ids"* output can be used.
+
+##### `Stage distances` | *How far from stage edges?*
+*TBD*
+
+##### `Hotspots` | *What are the most visited spots?*
+*TBD*
+
+##### `Pairwise matrix` | *How far people from each other?*
+*TBD*
+
+##### `Path similarity` | *Are they moving in a similar fashion?*
+*TBD*
+
+##### `Group target` | *Where everybody's going?*
+*TBD*
+
+##### `Templates` | *Are they moving in circles or zigzag?*
+*TBD*
