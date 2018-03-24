@@ -446,17 +446,17 @@ void OPT_CHOP::setupParameters(OP_ParameterManager* manager)
         
         OP_ParAppendResult res = manager->appendToggle(filterToggle);
         assert(res == OP_ParAppendResult::Success);
-        res = manager->appendInt(minX);
+        res = manager->appendFloat(minX);
         assert(res == OP_ParAppendResult::Success);
-        res = manager->appendInt(maxX);
+        res = manager->appendFloat(maxX);
         assert(res == OP_ParAppendResult::Success);
-        res = manager->appendInt(minY);
+        res = manager->appendFloat(minY);
         assert(res == OP_ParAppendResult::Success);
-        res = manager->appendInt(maxY);
+        res = manager->appendFloat(maxY);
         assert(res == OP_ParAppendResult::Success);
-        res = manager->appendInt(minZ);
+        res = manager->appendFloat(minZ);
         assert(res == OP_ParAppendResult::Success);
-        res = manager->appendInt(maxZ);
+        res = manager->appendFloat(maxZ);
         assert(res == OP_ParAppendResult::Success);
     }
 }
