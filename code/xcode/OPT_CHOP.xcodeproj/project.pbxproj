@@ -1,0 +1,483 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AF36345D205744FB00D547E6 /* om-json-parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF36345B205744FB00D547E6 /* om-json-parser.cpp */; };
+		AF363468205B01CC00D547E6 /* OPT_CHOP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF363467205B01CC00D547E6 /* OPT_CHOP.cpp */; };
+		AF36346A205B735100D547E6 /* o-base.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF363469205B735100D547E6 /* o-base.cpp */; };
+		AF36346B205B735100D547E6 /* o-base.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF363469205B735100D547E6 /* o-base.cpp */; };
+		AF36346E205C651B00D547E6 /* OPT_CHOP.plugin in CopyFiles */ = {isa = PBXBuildFile; fileRef = E23329D61DF092AD0002B4FE /* OPT_CHOP.plugin */; };
+		AFA994D0204A184100B04C98 /* OPT_CHOP.plugin in CopyFiles */ = {isa = PBXBuildFile; fileRef = E23329D61DF092AD0002B4FE /* OPT_CHOP.plugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		AFA994D7204B54E100B04C98 /* OM_CHOP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */; };
+		AFA994E1204B5F7900B04C98 /* OM_CHOP.plugin in CopyFiles */ = {isa = PBXBuildFile; fileRef = AFA994DF204B54E100B04C98 /* OM_CHOP.plugin */; };
+		AFA994E4204CF63B00B04C98 /* JsonSocketReader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */; };
+		AFA994E5204CF63B00B04C98 /* JsonSocketReader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AF36346C205C650C00D547E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E23329CE1DF092AD0002B4FE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E23329D51DF092AD0002B4FE;
+			remoteInfo = OPT_CHOP;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AFA994CF204A183D00B04C98 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "${PROJECT_DIR}";
+			dstSubfolderSpec = 0;
+			files = (
+				AFA994D0204A184100B04C98 /* OPT_CHOP.plugin in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AFA994DA204B54E100B04C98 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "${PROJECT_DIR}";
+			dstSubfolderSpec = 0;
+			files = (
+				AFA994E1204B5F7900B04C98 /* OM_CHOP.plugin in CopyFiles */,
+				AF36346E205C651B00D547E6 /* OPT_CHOP.plugin in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		AF36345B205744FB00D547E6 /* om-json-parser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "om-json-parser.cpp"; path = "../src/om-json-parser.cpp"; sourceTree = "<group>"; };
+		AF36345C205744FB00D547E6 /* om-json-parser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = "om-json-parser.hpp"; path = "../src/om-json-parser.hpp"; sourceTree = "<group>"; };
+		AF363463205ACFC500D547E6 /* o-base.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = "o-base.hpp"; path = "../src/o-base.hpp"; sourceTree = "<group>"; };
+		AF363466205B01CC00D547E6 /* OPT_CHOP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OPT_CHOP.h; path = ../src/OPT_CHOP.h; sourceTree = "<group>"; };
+		AF363467205B01CC00D547E6 /* OPT_CHOP.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OPT_CHOP.cpp; path = ../src/OPT_CHOP.cpp; sourceTree = "<group>"; };
+		AF363469205B735100D547E6 /* o-base.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "o-base.cpp"; path = "../src/o-base.cpp"; sourceTree = "<group>"; };
+		AF7DCA51204EDBB800B54885 /* defines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = defines.h; path = ../src/defines.h; sourceTree = "<group>"; };
+		AF7DCA52204EDC6800B54885 /* debug.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = debug.h; path = ../src/debug.h; sourceTree = "<group>"; };
+		AFA994CA204A0DDC00B04C98 /* CHOP_CPlusPlusBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CHOP_CPlusPlusBase.h; path = ../src/CHOP_CPlusPlusBase.h; sourceTree = "<group>"; };
+		AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CPlusPlus_Common.h; path = ../src/CPlusPlus_Common.h; sourceTree = "<group>"; };
+		AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OM_CHOP.cpp; path = ../src/OM_CHOP.cpp; sourceTree = "<group>"; };
+		AFA994D2204B547F00B04C98 /* OM_CHOP.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = OM_CHOP.hpp; path = ../src/OM_CHOP.hpp; sourceTree = "<group>"; };
+		AFA994DF204B54E100B04C98 /* OM_CHOP.plugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OM_CHOP.plugin; sourceTree = BUILT_PRODUCTS_DIR; };
+		AFA994E0204B54E100B04C98 /* OM-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "OM-Info.plist"; sourceTree = SOURCE_ROOT; };
+		AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = JsonSocketReader.cpp; path = ../src/JsonSocketReader.cpp; sourceTree = "<group>"; };
+		AFA994E3204CF63B00B04C98 /* JsonSocketReader.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = JsonSocketReader.hpp; path = ../src/JsonSocketReader.hpp; sourceTree = "<group>"; };
+		E23329D61DF092AD0002B4FE /* OPT_CHOP.plugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OPT_CHOP.plugin; sourceTree = BUILT_PRODUCTS_DIR; };
+		E23329D91DF092AD0002B4FE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AFA994D8204B54E100B04C98 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E23329D31DF092AD0002B4FE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AF36345E2057450300D547E6 /* om json parser */ = {
+			isa = PBXGroup;
+			children = (
+				AF36345B205744FB00D547E6 /* om-json-parser.cpp */,
+				AF36345C205744FB00D547E6 /* om-json-parser.hpp */,
+			);
+			name = "om json parser";
+			sourceTree = "<group>";
+		};
+		AF36345F2057451500D547E6 /* common */ = {
+			isa = PBXGroup;
+			children = (
+				AF7DCA51204EDBB800B54885 /* defines.h */,
+				AFA994CA204A0DDC00B04C98 /* CHOP_CPlusPlusBase.h */,
+				AFA994CB204A0DE700B04C98 /* CPlusPlus_Common.h */,
+				AF363469205B735100D547E6 /* o-base.cpp */,
+				AF363463205ACFC500D547E6 /* o-base.hpp */,
+				AFA994E2204CF63B00B04C98 /* JsonSocketReader.cpp */,
+				AFA994E3204CF63B00B04C98 /* JsonSocketReader.hpp */,
+			);
+			name = common;
+			sourceTree = "<group>";
+		};
+		AF3634602057451F00D547E6 /* opt */ = {
+			isa = PBXGroup;
+			children = (
+				AF363467205B01CC00D547E6 /* OPT_CHOP.cpp */,
+				AF363466205B01CC00D547E6 /* OPT_CHOP.h */,
+				E23329D91DF092AD0002B4FE /* Info.plist */,
+			);
+			name = opt;
+			sourceTree = "<group>";
+		};
+		AF3634612057452B00D547E6 /* om */ = {
+			isa = PBXGroup;
+			children = (
+				AF36345E2057450300D547E6 /* om json parser */,
+				AF7DCA52204EDC6800B54885 /* debug.h */,
+				AFA994D1204B547F00B04C98 /* OM_CHOP.cpp */,
+				AFA994D2204B547F00B04C98 /* OM_CHOP.hpp */,
+			);
+			name = om;
+			sourceTree = "<group>";
+		};
+		E23329CD1DF092AD0002B4FE = {
+			isa = PBXGroup;
+			children = (
+				E23329F11DF1D64A0002B4FE /* CHOP */,
+				E23329D71DF092AD0002B4FE /* Products */,
+				AFA994E0204B54E100B04C98 /* OM-Info.plist */,
+			);
+			sourceTree = "<group>";
+		};
+		E23329D71DF092AD0002B4FE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E23329D61DF092AD0002B4FE /* OPT_CHOP.plugin */,
+				AFA994DF204B54E100B04C98 /* OM_CHOP.plugin */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E23329F11DF1D64A0002B4FE /* CHOP */ = {
+			isa = PBXGroup;
+			children = (
+				AF36345F2057451500D547E6 /* common */,
+				AF3634612057452B00D547E6 /* om */,
+				AF3634602057451F00D547E6 /* opt */,
+			);
+			name = CHOP;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AFA994D4204B54E100B04C98 /* OM_CHOP */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AFA994DC204B54E100B04C98 /* Build configuration list for PBXNativeTarget "OM_CHOP" */;
+			buildPhases = (
+				AFA994D5204B54E100B04C98 /* Sources */,
+				AFA994D8204B54E100B04C98 /* Frameworks */,
+				AFA994D9204B54E100B04C98 /* Resources */,
+				AFA994DA204B54E100B04C98 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AF36346D205C650C00D547E6 /* PBXTargetDependency */,
+			);
+			name = OM_CHOP;
+			productName = CPlusPlusCHOPExample;
+			productReference = AFA994DF204B54E100B04C98 /* OM_CHOP.plugin */;
+			productType = "com.apple.product-type.bundle";
+		};
+		E23329D51DF092AD0002B4FE /* OPT_CHOP */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E23329DC1DF092AD0002B4FE /* Build configuration list for PBXNativeTarget "OPT_CHOP" */;
+			buildPhases = (
+				E23329D21DF092AD0002B4FE /* Sources */,
+				E23329D31DF092AD0002B4FE /* Frameworks */,
+				E23329D41DF092AD0002B4FE /* Resources */,
+				AFA994CF204A183D00B04C98 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OPT_CHOP;
+			productName = CPlusPlusCHOPExample;
+			productReference = E23329D61DF092AD0002B4FE /* OPT_CHOP.plugin */;
+			productType = "com.apple.product-type.bundle";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E23329CE1DF092AD0002B4FE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0820;
+				ORGANIZATIONNAME = Derivative;
+				TargetAttributes = {
+					E23329D51DF092AD0002B4FE = {
+						CreatedOnToolsVersion = 8.0;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = E23329D11DF092AD0002B4FE /* Build configuration list for PBXProject "OPT_CHOP" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = E23329CD1DF092AD0002B4FE;
+			productRefGroup = E23329D71DF092AD0002B4FE /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E23329D51DF092AD0002B4FE /* OPT_CHOP */,
+				AFA994D4204B54E100B04C98 /* OM_CHOP */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AFA994D9204B54E100B04C98 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E23329D41DF092AD0002B4FE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AFA994D5204B54E100B04C98 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AFA994D7204B54E100B04C98 /* OM_CHOP.cpp in Sources */,
+				AFA994E5204CF63B00B04C98 /* JsonSocketReader.cpp in Sources */,
+				AF36346B205B735100D547E6 /* o-base.cpp in Sources */,
+				AF36345D205744FB00D547E6 /* om-json-parser.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E23329D21DF092AD0002B4FE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AFA994E4204CF63B00B04C98 /* JsonSocketReader.cpp in Sources */,
+				AF36346A205B735100D547E6 /* o-base.cpp in Sources */,
+				AF363468205B01CC00D547E6 /* OPT_CHOP.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AF36346D205C650C00D547E6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E23329D51DF092AD0002B4FE /* OPT_CHOP */;
+			targetProxy = AF36346C205C650C00D547E6 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AFA994DD204B54E100B04C98 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_TEMP_DIR = "$(PROJECT_TEMP_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				HEADER_SEARCH_PATHS = "";
+				INFOPLIST_FILE = "OM-Info.plist";
+				INSTALL_PATH = /;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-std=c++1z",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = edu.ucla.remap;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../thirdparty";
+				WRAPPER_EXTENSION = plugin;
+			};
+			name = Debug;
+		};
+		AFA994DE204B54E100B04C98 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				HEADER_SEARCH_PATHS = "";
+				INFOPLIST_FILE = "OM-Info.plist";
+				INSTALL_PATH = /;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-std=c++1z",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = edu.ucla.remap;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../thirdparty";
+				WRAPPER_EXTENSION = plugin;
+			};
+			name = Release;
+		};
+		E23329DA1DF092AD0002B4FE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_SUSPICIOUS_MOVES = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		E23329DB1DF092AD0002B4FE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_SUSPICIOUS_MOVES = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		E23329DD1DF092AD0002B4FE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../vs/OPT_CHOP/OPT_CHOP/";
+				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
+				INSTALL_PATH = /;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-std=c++1z",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = edu.ucla.remap;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = plugin;
+			};
+			name = Debug;
+		};
+		E23329DE1DF092AD0002B4FE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../vs/OPT_CHOP/OPT_CHOP/";
+				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
+				INSTALL_PATH = /;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-std=c++1z",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = edu.ucla.remap;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = plugin;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AFA994DC204B54E100B04C98 /* Build configuration list for PBXNativeTarget "OM_CHOP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AFA994DD204B54E100B04C98 /* Debug */,
+				AFA994DE204B54E100B04C98 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E23329D11DF092AD0002B4FE /* Build configuration list for PBXProject "OPT_CHOP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E23329DA1DF092AD0002B4FE /* Debug */,
+				E23329DB1DF092AD0002B4FE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E23329DC1DF092AD0002B4FE /* Build configuration list for PBXNativeTarget "OPT_CHOP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E23329DD1DF092AD0002B4FE /* Debug */,
+				E23329DE1DF092AD0002B4FE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = E23329CE1DF092AD0002B4FE /* Project object */;
+}
