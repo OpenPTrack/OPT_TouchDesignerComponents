@@ -16,6 +16,7 @@
 
 #include "OPT_CHOP.h"
 #include "defines.h"
+#include "debug.h"
 
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -62,7 +63,7 @@ warningMessage_ = msg.str(); \
 #define PORTNUM 21234
 
 #define NPAR_OUT 8
-#define NINFOPAR_OUT 3
+#define NINFOPAR_OUT 5
 #define PAR_MAXTRACKED "Maxtracked"
 #define PAR_MINX "Minx"
 #define PAR_MAXX "Maxx"
@@ -75,7 +76,7 @@ warningMessage_ = msg.str(); \
 using namespace std;
 
 static const char* ChanNames[8] = { "id", "age", "confidence", "x", "y", "height", "isAlive", "stableId" };
-static const char* InfoChanNames[3] = { "heartbeat", "maxId", "noData" };
+static const char* InfoChanNames[5] = { "heartbeat", "maxId", "noData", "msgQueue", "nDropped" };
 
 static shared_ptr<JsonSocketReader> SocketReader;
 
@@ -177,9 +178,11 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
                        minX, maxX, minY, maxY, minZ, maxZ](vector<rapidjson::Document>& msgs){
             if (msgs.size() == 0)
                 return ;
-            
+
             string bundleStr = bundleToString(msgs);
-            
+#ifdef PRINT_MESSAGES
+            cout << "got message: " << bundleStr << endl;
+#endif
             // for OPT, expecting bundle size of 1 message only
             rapidjson::Document& d = msgs[0];
             
@@ -339,11 +342,19 @@ OPT_CHOP::getInfoCHOPChan(int32_t index,
             chan->name = InfoChanNames[index];
             chan->value = (float)noData_;
             break;
+        case 3:
+            chan->name = InfoChanNames[index];
+            chan->value = (float)messages_.size();
+            break;
+        case 4:
+            chan->name = InfoChanNames[index];
+            chan->value = (float)nDropped_;
+            break;
         default:
         {
             map<string, int>::iterator it = seqs_.begin();
             stringstream ss;
-            advance(it, index-2);
+            advance(it, index-(NINFOPAR_OUT-1));
             ss << "seq_" << it->first;
             
             chan->name = ss.str().c_str();

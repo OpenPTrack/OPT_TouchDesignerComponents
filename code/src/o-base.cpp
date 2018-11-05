@@ -127,6 +127,7 @@ OBase::processBundle(OnNewBundle handler)
     if (!queueBusy_)
     {
         lock_guard<mutex> lock(messagesMutex_);
+        nDropped_ = 0;
         
         for (MessagesQueue::iterator it = messages_.begin();
              it != messages_.end(); /* NO INCREMENT HERE */)
@@ -143,19 +144,17 @@ OBase::processBundle(OnNewBundle handler)
                 bool oldMessage = (thisSeqNo < seqs_[frameId]);
                 
                 if (oldMessage)
-                {
-                    stringstream ss;
-                    ss << "Received old message: seq " << thisSeqNo
-                        << " vs current seq " <<  seqs_[frameId];
-                    processingError(ss.str());
-                }
+                    nDropped_++;
                 else
                     handler(msgs);
                 
                 seqs_[frameId] = (*it).first;
                 messages_.erase(it++);
                 
-                break; // we're done here
+                // using continue instead of break makes sense for OPT
+                // TODO: test openmoves whether continue works
+//                continue; // we'll continue to process the whole queue
+//                break;
             } // if messages bundle
             else
             {
@@ -172,6 +171,13 @@ OBase::processBundle(OnNewBundle handler)
                     ++it;
             }
         } // for msg in queue
+        
+        if (nDropped_)
+        {
+            stringstream ss;
+            ss << "Dropped " << nDropped_ << " old messages" << std::endl;
+            processingError(ss.str());
+        }
     } // if queue not busy
 }
 

@@ -40,12 +40,13 @@ protected:
     
     double lastDataTs_;
     bool noData_;
+    int nDropped_;
     // sequence numbers can be per frame id
     std::map<std::string, int> seqs_;
     std::atomic<bool> queueBusy_;
     std::mutex messagesMutex_;
     // dictionary of collected messages
-    typedef std::map<int, std::pair<double, std::vector<rapidjson::Document>>> MessagesQueue;
+    typedef std::map<int, std::pair<double, std::vector<rapidjson::Document>>, std::greater<int>> MessagesQueue;
     MessagesQueue messages_;
     
     std::string bundleToString(const std::vector<rapidjson::Document>& bundle);
