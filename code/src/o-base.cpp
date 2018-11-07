@@ -128,6 +128,7 @@ OBase::processBundle(OnNewBundle handler)
     {
         lock_guard<mutex> lock(messagesMutex_);
         nDropped_ = 0;
+        std::map<std::string, int> seqs;
         
         for (MessagesQueue::iterator it = messages_.begin();
              it != messages_.end(); /* NO INCREMENT HERE */)
@@ -138,17 +139,17 @@ OBase::processBundle(OnNewBundle handler)
                 string frameId = retrieveFrameId(msgs[0]);
                 int thisSeqNo = (*it).first;
                 
-                if (seqs_.find(frameId) == seqs_.end())
-                    seqs_[frameId] = (*it).first;
+                if (seqs.find(frameId) == seqs.end())
+                    seqs[frameId] = (*it).first;
                 
-                bool oldMessage = (thisSeqNo < seqs_[frameId]);
+                bool oldMessage = (thisSeqNo < seqs[frameId]);
                 
                 if (oldMessage)
                     nDropped_++;
                 else
                 {
                     handler(msgs);
-                    seqs_[frameId] = (*it).first;
+                    seqs[frameId] = (*it).first;
                 }
                 
                 messages_.erase(it++);
@@ -173,6 +174,9 @@ OBase::processBundle(OnNewBundle handler)
                     ++it;
             }
         } // for msg in queue
+        
+        seqs.insert(lastProcessedSeqs_.begin(), lastProcessedSeqs_.end());
+        lastProcessedSeqs_ = seqs;
         
         //if (nDropped_)
         //{

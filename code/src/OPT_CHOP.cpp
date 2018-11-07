@@ -322,7 +322,7 @@ void OPT_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reser
 int32_t
 OPT_CHOP::getNumInfoCHOPChans()
 {
-    return NINFOPAR_OUT+(int32_t)seqs_.size(); // hearbeat, max id
+    return NINFOPAR_OUT+(int32_t)lastProcessedSeqs_.size(); // hearbeat, max id
 }
 
 void
@@ -352,9 +352,9 @@ OPT_CHOP::getInfoCHOPChan(int32_t index,
             break;
         default:
         {
-            map<string, int>::iterator it = seqs_.begin();
+            map<string, int>::iterator it = lastProcessedSeqs_.begin();
             stringstream ss;
-            advance(it, index-(NINFOPAR_OUT-1));
+            advance(it, index-NINFOPAR_OUT);
             ss << "seq_" << it->first;
             
             chan->name = ss.str().c_str();

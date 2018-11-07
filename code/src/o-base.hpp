@@ -42,7 +42,8 @@ protected:
     bool noData_;
     int nDropped_;
     // sequence numbers can be per frame id
-    std::map<std::string, int> seqs_;
+//    std::map<std::string, int> seqs_;
+    std::map<std::string, int> lastProcessedSeqs_;
     std::atomic<bool> queueBusy_;
     std::mutex messagesMutex_;
     // dictionary of collected messages

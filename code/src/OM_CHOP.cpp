@@ -531,7 +531,7 @@ void OM_CHOP::execute(const CHOP_Output* output, OP_Inputs* inputs, void* reserv
 int32_t
 OM_CHOP::getNumInfoCHOPChans()
 {
-    return NINFOPAR_OUT+(int32_t)seqs_.size();
+    return NINFOPAR_OUT+(int32_t)lastProcessedSeqs_.size();
 }
 
 void
@@ -553,9 +553,10 @@ OM_CHOP::getInfoCHOPChan(int32_t index,
             break;
         default:
 		{
-			map<string, int>::iterator it = seqs_.begin();
+			map<string, int>::iterator it = lastProcessedSeqs_.begin();
 			stringstream ss;
-			advance(it, index - 2);
+			advance(it, index - NINFOPAR_OUT);
+//            ss << "seq_" << index;  it->first;
 			ss << "seq_" << it->first;
 
 			chan->name = ss.str().c_str();
