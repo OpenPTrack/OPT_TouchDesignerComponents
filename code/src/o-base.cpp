@@ -146,9 +146,11 @@ OBase::processBundle(OnNewBundle handler)
                 if (oldMessage)
                     nDropped_++;
                 else
+                {
                     handler(msgs);
+                    seqs_[frameId] = (*it).first;
+                }
                 
-                seqs_[frameId] = (*it).first;
                 messages_.erase(it++);
                 
                 // using continue instead of break makes sense for OPT
@@ -172,12 +174,12 @@ OBase::processBundle(OnNewBundle handler)
             }
         } // for msg in queue
         
-        if (nDropped_)
-        {
-            stringstream ss;
-            ss << "Dropped " << nDropped_ << " old messages" << std::endl;
-            processingError(ss.str());
-        }
+        //if (nDropped_)
+        //{
+        //    stringstream ss;
+        //    ss << "Dropped " << nDropped_ << " old messages" << std::endl;
+        //    processingError(ss.str());
+        //}
     } // if queue not busy
 }
 
